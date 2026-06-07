@@ -139,7 +139,8 @@ pub fn scaled_dot_product_attention_device<'a>(
             values.as_ref().as_ptr(),
             scale,
             mask_mode.as_ptr(),
-            masks.as_ptr(),
+            mlx_sys::mlx_array_new(),
+            mlx_sys::mlx_array_new(),
             stream.as_ref().as_ptr(),
         )
     })

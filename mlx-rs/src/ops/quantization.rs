@@ -1,6 +1,6 @@
 use mlx_internal_macros::{default_device, generate_macro};
 
-use crate::{error::Result, utils::guard::Guarded, Array, Stream};
+use crate::{error::Result, utils::{guard::Guarded, VectorArray}, Array, Stream};
 
 /// Quantize the matrix `w` using `bits` bits per element.
 ///
@@ -30,17 +30,28 @@ pub fn quantize_device(
     let group_size = group_size.into().unwrap_or(64);
     let bits = bits.into().unwrap_or(4);
 
-    <(Array, Array, Array) as Guarded>::try_from_op(|(res0, res1, res2)| unsafe {
+    let group_size = mlx_sys::mlx_optional_int_ { value: group_size, has_value: true };
+    let bits = mlx_sys::mlx_optional_int_ { value: bits, has_value: true };
+
+    let v = VectorArray::try_from_op(|res| unsafe {
         mlx_sys::mlx_quantize(
-            res0,
-            res1,
-            res2,
+            res,
             w.as_ref().as_ptr(),
             group_size,
             bits,
+            std::ptr::null(),
+            mlx_sys::mlx_array_new(),
             stream.as_ref().as_ptr(),
         )
-    })
+    })?;
+
+    let vals: Vec<Array> = v.try_into_values()?;
+    let mut iter = vals.into_iter();
+    let qw = iter.next().unwrap();
+    let qs = iter.next().unwrap();
+    let qb = iter.next().unwrap();
+
+    Ok((qw, qs, qb))
 }
 
 /// Perform the matrix multiplication with the quantized matrix `w`. The quantization uses one
@@ -71,8 +82,9 @@ pub fn quantized_matmul_device(
             scales.as_ref().as_ptr(),
             biases.as_ref().as_ptr(),
             transpose,
-            group_size,
-            bits,
+            mlx_sys::mlx_optional_int_ { value: group_size, has_value: true },
+            mlx_sys::mlx_optional_int_ { value: bits, has_value: true },
+            std::ptr::null(),
             stream.as_ref().as_ptr(),
         )
     })
@@ -80,7 +92,6 @@ pub fn quantized_matmul_device(
 
 /// Dequantize the matrix `w` using the provided `scales` and `biases` and the `group_size` and
 /// `bits` configuration.
-///
 /// For details, please see [this
 /// documentation](https://ml-explore.github.io/mlx/build/html/python/_autosummary/mlx.core.dequantize.html)
 #[generate_macro]
@@ -102,8 +113,11 @@ pub fn dequantize_device(
             w.as_ref().as_ptr(),
             scales.as_ref().as_ptr(),
             biases.as_ref().as_ptr(),
-            group_size,
-            bits,
+            mlx_sys::mlx_optional_int_ { value: group_size, has_value: true },
+            mlx_sys::mlx_optional_int_ { value: bits, has_value: true },
+            std::ptr::null(),
+            mlx_sys::mlx_array_new(),
+            mlx_sys::mlx_optional_dtype_ { value: mlx_sys::mlx_dtype__MLX_FLOAT32, has_value: false },
             stream.as_ref().as_ptr(),
         )
     })
