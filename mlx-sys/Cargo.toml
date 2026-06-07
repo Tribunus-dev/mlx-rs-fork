@@ -1,6 +1,6 @@
 [package]
 name = "mlx-sys"
-version = "0.2.0" # mlx-sys version should follow that of mlx-c
+version = "0.6.0-tribunus.1" # MLX C 0.6.0 → Core 0.31.2
 authors.workspace = true
 edition.workspace = true
 

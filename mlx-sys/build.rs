@@ -73,4 +73,14 @@ fn main() {
     bindings
         .write_to_file(out_path.join("bindings.rs"))
         .expect("Couldn't write bindings!");
+
+    // Emit build-generated version constants
+    let mlx_c_version = std::fs::read_to_string("src/mlx-c/VERSION")
+        .unwrap_or_else(|_| "0.6.0".to_string())
+        .trim()
+        .to_string();
+    println!("cargo:rustc-env=MLX_C_VERSION={}", mlx_c_version);
+    println!("cargo:rustc-env=MLX_CORE_TARGET=v0.31.2");
+    println!("cargo:rustc-env=MLX_SYS_VERSION=0.6.0-tribunus.1");
+    println!("cargo:rustc-env=MLX_RS_BASE_COMMIT=93ed8db");
 }
