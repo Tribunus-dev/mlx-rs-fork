@@ -39,7 +39,7 @@ pub fn quantize_device(
             w.as_ref().as_ptr(),
             group_size,
             bits,
-            std::ffi::CStr::from_bytes_with_nul(b"\0").unwrap().as_ptr(),
+            std::ffi::CStr::from_bytes_with_nul(b"affine\0").unwrap().as_ptr(),
             mlx_sys::mlx_array_new(),
             stream.as_ref().as_ptr(),
         )
@@ -84,7 +84,7 @@ pub fn quantized_matmul_device(
             transpose,
             mlx_sys::mlx_optional_int_ { value: group_size, has_value: true },
             mlx_sys::mlx_optional_int_ { value: bits, has_value: true },
-            std::ffi::CStr::from_bytes_with_nul(b"\0").unwrap().as_ptr(),
+            std::ffi::CStr::from_bytes_with_nul(b"affine\0").unwrap().as_ptr(),
             stream.as_ref().as_ptr(),
         )
     })
@@ -115,7 +115,7 @@ pub fn dequantize_device(
             biases.as_ref().as_ptr(),
             mlx_sys::mlx_optional_int_ { value: group_size, has_value: true },
             mlx_sys::mlx_optional_int_ { value: bits, has_value: true },
-            std::ffi::CStr::from_bytes_with_nul(b"\0").unwrap().as_ptr(),
+            std::ffi::CStr::from_bytes_with_nul(b"affine\0").unwrap().as_ptr(),
             mlx_sys::mlx_array_new(),
             mlx_sys::mlx_optional_dtype_ { value: mlx_sys::mlx_dtype__MLX_FLOAT32, has_value: false },
             stream.as_ref().as_ptr(),
