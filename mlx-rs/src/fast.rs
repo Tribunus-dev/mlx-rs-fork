@@ -122,7 +122,7 @@ pub fn scaled_dot_product_attention_device<'a>(
     #[optional] mask: impl IntoOption<ScaledDotProductAttentionMask<'a>>,
     #[optional] stream: impl AsRef<Stream>,
 ) -> Result<Array> {
-    let (mask_mode, masks) = mask.into_option().map_or_else(
+    let (mask_mode, _masks) = mask.into_option().map_or_else(
         || {
             (DEFAULT_MASK_MODE, unsafe {
                 VectorArray::from_ptr(mlx_sys::mlx_vector_array_new())
