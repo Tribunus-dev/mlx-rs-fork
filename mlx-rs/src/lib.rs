@@ -1,311 +1,484 @@
 //! Unofficial rust bindings for the [MLX
 //! framework](https://github.com/ml-explore/mlx).
-//!
-//! # Table of Contents
-//!
-//! - [Quick Start](#quick-start)
-//! - [Lazy Evaluation](#lazy-evaluation)
-//! - [Unified Memory](#unified-memory)
-//! - [Indexing Arrays](#indexing-arrays)
-//! - [Saving and Loading](#saving-and-loading)
-//!
-//! # Quick Start
-//!
-//! See also [MLX python
-//! documentation](https://ml-explore.github.io/mlx/build/html/usage/quick_start.html)
-//!
-//! ## Basics
-//!
-//! ```rust
-//! use mlx_rs::{array, Dtype};
-//!
-//! let a = array!([1, 2, 3, 4]);
-//! assert_eq!(a.shape(), &[4]);
-//! assert_eq!(a.dtype(), Dtype::Int32);
-//!
-//! let b = array!([1.0, 2.0, 3.0, 4.0]);
-//! assert_eq!(b.dtype(), Dtype::Float32);
-//! ```
-//!
-//! Operations in MLX are lazy. Use [`Array::eval`] to evaluate the the output
-//! of an operation. Operations are also automatically evaluated when inspecting
-//! an array with [`Array::item`], printing an array, or attempting to obtain
-//! the underlying data with [`Array::as_slice`].
-//!
-//! ```rust
-//! use mlx_rs::{array, transforms::eval};
-//!
-//! let a = array!([1, 2, 3, 4]);
-//! let b = array!([1.0, 2.0, 3.0, 4.0]);
-//!
-//! let c = &a + &b; // c is not evaluated
-//! c.eval().unwrap(); // evaluates c
-//!
-//! let d = &a + &b;
-//! println!("{:?}", d); // evaluates d
-//!
-//! let e = &a + &b;
-//! let e_slice: &[f32] = e.as_slice(); // evaluates e
-//! ```
-//!
-//! See [Lazy Evaluation](#lazy-evaluation) for more details.
-//!
-//! ## Function and Graph Transformations
-//!
-//! TODO: https://github.com/oxideai/mlx-rs/issues/214
-//!
-//! TODO: also document that all `Array` in the args for function
-//!       transformations
-//!
-//! # Lazy Evaluation
-//!
-//! See also [MLX python
-//! documentation](https://ml-explore.github.io/mlx/build/html/usage/lazy_evaluation.html)
-//!
-//! ## Why Lazy Evaluation
-//!
-//! When you perform operations in MLX, no computation actually happens. Instead
-//! a compute graph is recorded. The actual computation only happens if an
-//! [`Array::eval`] is performed.
-//!
-//! MLX uses lazy evaluation because it has some nice features, some of which we
-//! describe below.
-//!
-//! ## Transforming Compute Graphs
-//!
-//! Lazy evaluation lets us record a compute graph without actually doing any
-//! computations. This is useful for function transformations like
-//! [`transforms::grad`] and graph optimizations.
-//!
-//! Currently, MLX does not compile and rerun compute graphs. They are all
-//! generated dynamically. However, lazy evaluation makes it much easier to
-//! integrate compilation for future performance enhancements.
-//!
-//! ## Only Compute What You Use
-//!
-//! In MLX you do not need to worry as much about computing outputs that are
-//! never used. For example:
-//!
-//! ```rust,ignore
-//! fn fun(x: &Array) -> (Array, Array) {
-//!     let a = cheap_fun(x);
-//!     let b = expensive_fun(x);
-//!     (a, b)
-//! }
-//!
-//! let (y, _) = fun(&x);
-//! ```
-//!
-//! Here, we never actually compute the output of `expensive_fun`. Use this
-//! pattern with care though, as the graph of `expensive_fun` is still built,
-//! and that has some cost associated to it.
-//!
-//! Similarly, lazy evaluation can be beneficial for saving memory while keeping
-//! code simple. Say you have a very large model `Model` implementing
-//! [`module::Module`]. You can instantiate this model with `let model =
-//! Model::new()`. Typically, this will initialize all of the weights as
-//! `float32`, but the initialization does not actually compute anything until
-//! you perform an `eval()`. If you update the model with `float16` weights,
-//! your maximum consumed memory will be half that required if eager computation
-//! was used instead.
-//!
-//! This pattern is simple to do in MLX thanks to lazy computation:
-//!
-//! ```rust,ignore
-//! let mut model = Model::new();
-//! model.load_safetensors("model.safetensors").unwrap();
-//! ```
-//!
-//! ## When to Evaluate
-//!
-//! A common question is when to use `eval()`. The trade-off is between letting
-//! graphs get too large and not batching enough useful work.
-//!
-//! For example
-//!
-//! ```rust,ignore
-//! let mut a = array!([1, 2, 3, 4]);
-//! let mut b = array!([1.0, 2.0, 3.0, 4.0]);
-//!
-//! for _ in 0..100 {
-//!     a = a + b;
-//!     a.eval()?;
-//!     b = b * 2.0;
-//!     b.eval()?;
-//! }
-//! ```
-//!
-//! This is a bad idea because there is some fixed overhead with each graph
-//! evaluation. On the other hand, there is some slight overhead which grows
-//! with the compute graph size, so extremely large graphs (while
-//! computationally correct) can be costly.
-//!
-//! Luckily, a wide range of compute graph sizes work pretty well with MLX:
-//! anything from a few tens of operations to many thousands of operations per
-//! evaluation should be okay.
-//!
-//! Most numerical computations have an iterative outer loop (e.g. the iteration
-//! in stochastic gradient descent). A natural and usually efficient place to
-//! use `eval()` is at each iteration of this outer loop.
-//!
-//! Here is a concrete example:
-//!
-//! ```rust,ignore
-//! for batch in dataset {
-//!     // Nothing has been evaluated yet
-//!     let (loss, grad) = value_and_grad_fn(&mut model, batch)?;
-//!
-//!     // Still nothing has been evaluated
-//!     optimizer.update(&mut model, grad)?;
-//!
-//!     // Evaluate the loss and the new parameters which will
-//!     // run the full gradient computation and optimizer update
-//!     eval_params(model.parameters())?;
-//! }
-//! ```
-//!
-//! An important behavior to be aware of is when the graph will be implicitly
-//! evaluated. Anytime you `print` an array, or otherwise access its memory via
-//! [`Array::as_slice`], the graph will be evaluated. Saving arrays via
-//! [`Array::save_numpy`] or [`Array::save_safetensors`] (or any other MLX
-//! saving functions) will also evaluate the array.
-//!
-//! Calling [`Array::item`] on a scalar array will also evaluate it. In the
-//! example above, printing the loss (`println!("{:?}", loss)`) or pushing the
-//! loss scalar to a [`Vec`] (`losses.push(loss.item::<f32>())`) would cause a
-//! graph evaluation. If these lines are before evaluating the loss and module
-//! parameters, then this will be a partial evaluation, computing only the
-//! forward pass.
-//!
-//! Also, calling `eval()` on an array or set of arrays multiple times is
-//! perfectly fine. This is effectively a no-op.
-//!
-//! **Warning**: Using scalar arrays for control-flow will cause an evaluation.
-//!
-//! ```rust,ignore
-//! fn fun(x: &Array) -> Array {
-//!     let (h, y) = first_layer(x);
-//!
-//!     if y.gt(array!(0.5)).unwrap().item() {
-//!         second_layer_a(h)
-//!     } else {
-//!         second_layer_b(h)
-//!     }
-//! }
-//! ```
-//!
-//! Using arrays for control flow should be done with care. The above example
-//! works and can even be used with gradient transformations. However, this can
-//! be very inefficient if evaluations are done too frequently.
-//!
-//! # Unified Memory
-//!
-//! See also [MLX python
-//! documentation](https://ml-explore.github.io/mlx/build/html/usage/unified_memory.html)
-//!
-//! Apple silicon has a unified memory architecture. The CPU and GPU have direct
-//! access to the same memory pool. MLX is designed to take advantage of that.
-//!
-//! Concretely, when you make an array in MLX you don’t have to specify its
-//! location:
-//!
-//! ```rust
-//! // let a = mlx_rs::random::normal(&[100], None, None, None, None).unwrap();
-//! // let b = mlx_rs::random::normal(&[100], None, None, None, None).unwrap();
-//!
-//! let a = mlx_rs::normal!(shape=&[100]).unwrap();
-//! let b = mlx_rs::normal!(shape=&[100]).unwrap();
-//! ```
-//!
-//! Both `a` and `b` live in unified memory.
-//!
-//! In MLX, rather than moving arrays to devices, you specify the device when
-//! you run the operation. Any device can perform any operation on `a` and `b`
-//! without needing to move them from one memory location to another. For
-//! example:
-//!
-//! ```rust,ignore
-//! // mlx_rs::ops::add_device(&a, &b, StreamOrDevice::cpu()).unwrap();
-//! // mlx_rs::ops::add_device(&a, &b, StreamOrDevice::gpu()).unwrap();
-//!
-//! mlx_rs::add!(&a, &b, stream=StreamOrDevice::cpu()).unwrap();
-//! mlx_rs::add!(&a, &b, stream=StreamOrDevice::gpu()).unwrap();
-//! ```
-//!
-//! In the above, both the CPU and the GPU will perform the same add operation.
-//!
-//! TODO: The remaining python documentations states that the stream can be used
-//! to parallelize operations without worrying about racing conditions. We
-//! should check if this is true given that we've already observed data racing
-//! when executing unit tests in parallel.
-//!
-//! # Indexing Arrays
-//!
-//! See also [MLX python
-//! documentation](https://ml-explore.github.io/mlx/build/html/usage/indexing.html)
-//!
-//! Please refer to the indexing modules ([`ops::indexing`]) for more details.
-//!
-//! # Saving and Loading
-//!
-//! See also [MLX python
-//! documentation](https://ml-explore.github.io/mlx/build/html/usage/saving_and_loading.html)
-//!
-//! `mlx-rs` supports loading from `.npy` and `.safetensors` files and saving to
-//! `.safetensors` files. Module parameters and optimizer states can also be saved
-//! and loaded from `.safetensors` files.
-//!
-//! | type | load function | save function |
-//! |------|---------------|----------------|
-//! | [`Array`] | [`Array::load_numpy`] | [`Array::save_numpy`] |
-//! | `HashMap<String, Array>` | [`Array::load_safetensors`] | [`Array::save_safetensors`] |
-//! | [`module::Module`] | [`module::ModuleParametersExt::load_safetensors`] | [`module::ModuleParametersExt::save_safetensors`] |
-//! | [`optimizers::Optimizer`] | [`optimizers::OptimizerState::load_safetensors`] | [`optimizers::OptimizerState::save_safetensors`] |
-//!
-//! # Function Transforms
-//!
-//! See also [MLX python
-//! documentation](https://ml-explore.github.io/mlx/build/html/usage/function_transforms.html)
-//!
-//! Please refer to the transforms module ([`transforms`]) for more details.
-//!
-//! # Compilation
-//!
-//! See also [MLX python
-//! documentation](https://ml-explore.github.io/mlx/build/html/usage/compile.html)
-//!
-//! Please refer to the compilation module ([`transforms::compile`]) for more
-//! details.
 
 #![deny(unused_unsafe, missing_debug_implementations, missing_docs)]
 #![cfg_attr(test, allow(clippy::approx_constant))]
 
 #[macro_use]
-pub mod macros; // Must be first to ensure the other modules can use the macros
+/// Macros for mlx-rs
+pub mod macros;
 
+#[cfg(not(feature = "stub"))]
 mod array;
+#[cfg(not(feature = "stub"))]
 pub mod builder;
+#[cfg(not(feature = "stub"))]
 mod device;
+#[cfg(not(feature = "stub"))]
 mod dtype;
+#[cfg(not(feature = "stub"))]
 pub mod error;
+#[cfg(not(feature = "stub"))]
 pub mod fast;
+#[cfg(not(feature = "stub"))]
 pub mod fft;
+#[cfg(not(feature = "stub"))]
 pub mod linalg;
+#[cfg(not(feature = "stub"))]
 pub mod losses;
+#[cfg(not(feature = "stub"))]
 pub mod module;
+#[cfg(not(feature = "stub"))]
 pub mod nested;
+#[cfg(not(feature = "stub"))]
 pub mod nn;
+#[cfg(not(feature = "stub"))]
 pub mod ops;
+#[cfg(not(feature = "stub"))]
 pub mod optimizers;
+#[cfg(not(feature = "stub"))]
 pub mod quantization;
+#[cfg(not(feature = "stub"))]
 pub mod random;
-mod stream;
+#[cfg(not(feature = "stub"))]
+pub mod stream;
+#[cfg(not(feature = "stub"))]
 pub mod transforms;
+#[cfg(not(feature = "stub"))]
 pub mod utils;
 
+#[cfg(feature = "stub")]
+/// Dummy types for stub mode
+pub mod stub {
+    //! Dummy types for stub mode
+    use std::marker::PhantomData;
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    /// Dummy Dtype
+    pub enum Dtype {
+        /// Bool
+        Bool,
+        /// Uint8
+        Uint8,
+        /// Uint16
+        Uint16,
+        /// Uint32
+        Uint32,
+        /// Uint64
+        Uint64,
+        /// Int8
+        Int8,
+        /// Int16
+        Int16,
+        /// Int32
+        Int32,
+        /// Int64
+        Int64,
+        /// Float16
+        Float16,
+        /// Float32
+        Float32,
+        /// Float64
+        Float64,
+        /// Bfloat16
+        Bfloat16,
+        /// Complex64
+        Complex64,
+    }
+
+    #[derive(Debug, Clone, PartialEq)]
+    /// Dummy Array
+    pub struct Array {
+        _marker: PhantomData<()>,
+    }
+
+    impl AsRef<Array> for Array {
+        fn as_ref(&self) -> &Array { self }
+    }
+
+    /// Helper for anything that converts to Array
+    pub trait IntoArray {
+        /// Convert to array
+        fn into_array(self) -> Array;
+    }
+
+    impl IntoArray for f32 {
+        fn into_array(self) -> Array { Array { _marker: PhantomData } }
+    }
+
+    impl IntoArray for Array {
+        fn into_array(self) -> Array { self }
+    }
+
+    impl IntoArray for &Array {
+        fn into_array(self) -> Array { Array { _marker: PhantomData } }
+    }
+
+    impl IntoArray for Option<&Array> {
+        fn into_array(self) -> Array { Array { _marker: PhantomData } }
+    }
+
+    impl Array {
+        /// Create from slice
+        pub fn from_slice<T>(_data: &[T], _shape: &[i32]) -> Self {
+            Self { _marker: PhantomData }
+        }
+        /// Create from f32
+        pub fn from_f32(_val: f32) -> Self {
+            Self { _marker: PhantomData }
+        }
+        /// Create ones
+        pub fn ones<T>(_shape: &[i32]) -> MlxResult<Self> {
+            Ok(Self { _marker: PhantomData })
+        }
+        /// Create full
+        pub fn full<T>(_shape: &[i32], _val: impl IntoArray) -> MlxResult<Self> {
+            Ok(Self { _marker: PhantomData })
+        }
+        /// Get shape
+        pub fn shape(&self) -> &[i32] {
+            &[]
+        }
+        /// Try as slice
+        pub fn try_as_slice<T>(&self) -> MlxResult<&[T]> {
+            Err(error::Exception::custom("stub backend"))
+        }
+        /// As slice
+        pub fn as_slice<T>(&self) -> &[T] {
+            &[]
+        }
+        /// Multiply
+        pub fn multiply(&self, _other: &Self) -> MlxResult<Self> {
+            Ok(Self { _marker: PhantomData })
+        }
+        /// Add
+        pub fn add(&self, _other: &Self) -> MlxResult<Self> {
+            Ok(Self { _marker: PhantomData })
+        }
+        /// Subtract
+        pub fn subtract(&self, _other: &Self) -> MlxResult<Self> {
+            Ok(Self { _marker: PhantomData })
+        }
+        /// Divide
+        pub fn divide(&self, _other: &Self) -> MlxResult<Self> {
+            Ok(Self { _marker: PhantomData })
+        }
+        /// Matmul
+        pub fn matmul(&self, _other: &Self) -> MlxResult<Self> {
+            Ok(Self { _marker: PhantomData })
+        }
+        /// nbytes
+        pub fn nbytes(&self) -> usize {
+            0
+        }
+        /// as_dtype
+        pub fn as_dtype(&self, _dtype: Dtype) -> MlxResult<Self> {
+            Ok(Self { _marker: PhantomData })
+        }
+        /// eval
+        pub fn eval(&self) -> MlxResult<()> {
+            Ok(())
+        }
+        /// strides
+        pub fn strides(&self) -> &[usize] {
+            &[]
+        }
+        /// dtype
+        pub fn dtype(&self) -> Dtype {
+            Dtype::Float32
+        }
+        /// ndim
+        pub fn ndim(&self) -> usize {
+            0
+        }
+        /// reshape
+        pub fn reshape(&self, _shape: &[i32]) -> MlxResult<Self> {
+            Ok(Self { _marker: PhantomData })
+        }
+        /// transpose
+        pub fn transpose(&self) -> MlxResult<Self> {
+            Ok(Self { _marker: PhantomData })
+        }
+        /// from_raw_data
+        pub unsafe fn from_raw_data(_data: *const std::ffi::c_void, _shape: &[i32], _dtype: Dtype) -> Self {
+            Self { _marker: PhantomData }
+        }
+        /// size
+        pub fn size(&self) -> usize {
+            0
+        }
+        /// index
+        pub fn index<T>(&self, _indices: T) -> Self {
+            Self { _marker: PhantomData }
+        }
+        /// from_ptr
+        pub unsafe fn from_ptr(_ptr: mlx_sys::mlx_array) -> Self {
+            Self { _marker: PhantomData }
+        }
+        /// mean_axes
+        pub fn mean_axes(&self, _axes: &[i32], _keep_dims: bool) -> MlxResult<Self> {
+            Ok(Self { _marker: PhantomData })
+        }
+        /// index_mut
+        pub fn index_mut<T>(&mut self, _indices: T, _val: &Self) {
+            // no-op
+        }
+        /// as_ptr
+        pub fn as_ptr(&self) -> mlx_sys::mlx_array {
+            mlx_sys::mlx_array_ { ctx: std::ptr::null_mut() }
+        }
+        /// item
+        pub fn item<T: Default>(&self) -> T {
+            T::default()
+        }
+    }
+
+    /// Dummy MlxResult
+    pub type MlxResult<T, E = error::Exception> = Result<T, E>;
+
+    /// Dummy error module
+    pub mod error {
+        /// Dummy Result
+        pub type Result<T, E = Exception> = std::result::Result<T, E>;
+        /// Dummy Exception
+        #[derive(Debug, Clone)]
+        pub struct Exception(pub String);
+        impl Exception {
+            /// Custom error
+            pub fn custom(m: impl Into<String>) -> Self { Self(m.into()) }
+        }
+        impl std::fmt::Display for Exception {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "{}", self.0)
+            }
+        }
+        impl std::error::Error for Exception {}
+
+        impl From<Exception> for String {
+            fn from(e: Exception) -> Self { e.0 }
+        }
+    }
+
+    /// Dummy ops module
+    pub mod ops {
+        use super::{Array, MlxResult};
+        /// Dummy indexing module
+        pub mod indexing {
+            use super::{Array, MlxResult};
+            /// Dummy IndexOp trait
+            pub trait IndexOp {}
+            impl IndexOp for Array {}
+            /// Dummy IndexMutOp trait
+            pub trait IndexMutOp {}
+            impl IndexMutOp for Array {}
+            /// Dummy take_along_axis
+            pub fn take_along_axis(_a: &Array, _indices: &Array, _axis: i32) -> MlxResult<Array> {
+                Ok(Array { _marker: std::marker::PhantomData })
+            }
+            /// Dummy argmax_axis
+            pub fn argmax_axis(_a: &Array, _axis: i32, _keep_dims: bool) -> MlxResult<Array> {
+                Ok(Array { _marker: std::marker::PhantomData })
+            }
+            /// Dummy take_axis
+            pub fn take_axis(_a: &Array, _indices: &Array, _axis: i32) -> MlxResult<Array> {
+                Ok(Array { _marker: std::marker::PhantomData })
+            }
+        }
+        /// Dummy quantized_matmul
+        pub fn quantized_matmul(_x: &Array, _w: &Array, _s: &Array, _b: &Array, _transpose: bool, _group_size: i32, _bits: i32) -> MlxResult<Array> {
+            Ok(Array { _marker: std::marker::PhantomData })
+        }
+        /// Dummy transpose_axes
+        pub fn transpose_axes(_a: &Array, _axes: &[i32]) -> MlxResult<Array> {
+            Ok(Array { _marker: std::marker::PhantomData })
+        }
+        /// Dummy softmax_axes
+        pub fn softmax_axes(_a: &Array, _axes: &[i32], _precise: impl Into<Option<bool>>) -> MlxResult<Array> {
+            Ok(Array { _marker: std::marker::PhantomData })
+        }
+        /// Dummy tile
+        pub fn tile(_a: &Array, _reps: &[i32]) -> MlxResult<Array> {
+            Ok(Array { _marker: std::marker::PhantomData })
+        }
+        /// Dummy sigmoid
+        pub fn sigmoid(_a: &Array) -> MlxResult<Array> {
+            Ok(Array { _marker: std::marker::PhantomData })
+        }
+        /// Dummy reshape
+        pub fn reshape(_a: &Array, _shape: &[i32]) -> MlxResult<Array> {
+            Ok(Array { _marker: std::marker::PhantomData })
+        }
+        /// Dummy add
+        pub fn add(_a: &Array, _b: &Array) -> MlxResult<Array> {
+            Ok(Array { _marker: std::marker::PhantomData })
+        }
+        /// Dummy multiply
+        pub fn multiply(_a: &Array, _b: &Array) -> MlxResult<Array> {
+            Ok(Array { _marker: std::marker::PhantomData })
+        }
+        /// Dummy tanh
+        pub fn tanh(_a: &Array) -> MlxResult<Array> {
+            Ok(Array { _marker: std::marker::PhantomData })
+        }
+        /// Dummy rsqrt
+        pub fn rsqrt(_a: &Array) -> MlxResult<Array> {
+            Ok(Array { _marker: std::marker::PhantomData })
+        }
+        /// Dummy cos
+        pub fn cos(_a: &Array) -> MlxResult<Array> {
+            Ok(Array { _marker: std::marker::PhantomData })
+        }
+        /// Dummy sin
+        pub fn sin(_a: &Array) -> MlxResult<Array> {
+            Ok(Array { _marker: std::marker::PhantomData })
+        }
+        /// Dummy concatenate
+        pub fn concatenate(_arrays: &[&Array]) -> MlxResult<Array> {
+            Ok(Array { _marker: std::marker::PhantomData })
+        }
+        /// Dummy concatenate_axis
+        pub fn concatenate_axis(_arrays: &[&Array], _axis: i32) -> MlxResult<Array> {
+            Ok(Array { _marker: std::marker::PhantomData })
+        }
+        /// Dummy zeros
+        pub fn zeros<T>(_shape: &[i32]) -> MlxResult<Array> {
+            Ok(Array { _marker: std::marker::PhantomData })
+        }
+        /// Dummy mean_axes
+        pub fn mean_axes(_a: &Array, _axes: &[i32], _keep_dims: bool) -> MlxResult<Array> {
+            Ok(Array { _marker: std::marker::PhantomData })
+        }
+        /// Dummy dequantize
+        pub fn dequantize(_x: &Array, _s: &Array, _b: &Array, _group_size: i32, _bits: i32) -> MlxResult<Array> {
+            Ok(Array { _marker: std::marker::PhantomData })
+        }
+        /// Dummy transpose
+        pub fn transpose(_a: &Array) -> MlxResult<Array> {
+            Ok(Array { _marker: std::marker::PhantomData })
+        }
+        /// Dummy matmul
+        pub fn matmul(_a: &Array, _b: &Array) -> MlxResult<Array> {
+            Ok(Array { _marker: std::marker::PhantomData })
+        }
+    }
+
+    /// Dummy fast module
+    pub mod fast {
+        use super::{Array, MlxResult};
+        /// Dummy rms_norm
+        pub fn rms_norm(_x: &Array, _w: &Array, _eps: f32) -> MlxResult<Array> {
+            Ok(Array { _marker: std::marker::PhantomData })
+        }
+        /// Dummy rope
+        pub fn rope(_a: &Array, _dims: i32, _traditional: bool, _base: Option<f32>, _scale: f32, _offset: i32, _freqs: Option<&Array>) -> MlxResult<Array> {
+            Ok(Array { _marker: std::marker::PhantomData })
+        }
+    }
+
+    /// Dummy nn module
+    pub mod nn {
+        use super::{Array, MlxResult};
+        /// Dummy silu
+        pub fn silu(_x: &Array) -> MlxResult<Array> {
+            Ok(Array { _marker: std::marker::PhantomData })
+        }
+    }
+
+    /// Helper for optional stream
+    pub trait OptionalStream {
+        /// Convert to option
+        fn as_option(&self) -> Option<&Stream>;
+    }
+
+    /// Dummy random module
+    pub mod random {
+        use super::{Array, MlxResult, OptionalStream};
+        /// Dummy key
+        pub fn key(_seed: u64) -> MlxResult<Array> {
+            Ok(Array { _marker: std::marker::PhantomData })
+        }
+        /// Dummy categorical
+        pub fn categorical(_logits: &Array, _shape: Option<&[i32]>, _num_samples: Option<i32>, _stream: impl OptionalStream) -> MlxResult<Array> {
+            Ok(Array { _marker: std::marker::PhantomData })
+        }
+    }
+
+    /// Dummy Device
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub struct Device;
+    impl Device {
+        /// Try default
+        pub fn try_default() -> Result<Self, String> {
+            Ok(Self)
+        }
+        /// GPU
+        pub fn gpu() -> Self {
+            Self
+        }
+        /// CPU
+        pub fn cpu() -> Self {
+            Self
+        }
+    }
+
+    impl std::fmt::Display for Device {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "stub")
+        }
+    }
+
+    /// Dummy Stream
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub struct Stream;
+
+    impl Stream {
+        /// New
+        pub fn new() -> Self { Self }
+        /// as_ptr
+        pub fn as_ptr(&self) -> mlx_sys::mlx_stream {
+            mlx_sys::mlx_stream_ { ctx: std::ptr::null_mut() }
+        }
+    }
+
+    impl OptionalStream for &Array {
+        fn as_option(&self) -> Option<&Stream> { None }
+    }
+
+    impl OptionalStream for Option<&Stream> {
+        fn as_option(&self) -> Option<&Stream> { *self }
+    }
+
+    impl OptionalStream for Option<&Array> {
+        fn as_option(&self) -> Option<&Stream> { None }
+    }
+
+    impl OptionalStream for &Option<Array> {
+        fn as_option(&self) -> Option<&Stream> { None }
+    }
+
+    impl OptionalStream for &Option<&Array> {
+        fn as_option(&self) -> Option<&Stream> { None }
+    }
+
+    /// Dummy transforms module
+    pub mod transforms {
+        /// Dummy eval
+        pub fn eval(_args: impl IntoIterator<Item = super::Array>) -> super::MlxResult<()> {
+            Ok(())
+        }
+    }
+}
+
+#[cfg(feature = "stub")]
+pub use stub::*;
+
+#[cfg(not(feature = "stub"))]
 pub use array::*;
+#[cfg(not(feature = "stub"))]
 pub use device::*;
+#[cfg(not(feature = "stub"))]
 pub use dtype::*;
+#[cfg(not(feature = "stub"))]
 pub use stream::*;
 
 pub(crate) mod constants {

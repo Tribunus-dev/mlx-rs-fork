@@ -46,10 +46,13 @@ float_eq.workspace = true
 tempfile.workspace = true
 
 [features]
-default = ["accelerate", "metal"]
+default = []
 
 accelerate = ["mlx-sys/accelerate"]
 metal = ["mlx-sys/metal"]
 
 # Enables conversion between `Array` and `safetensors::TensorView`
 safetensors = ["dep:safetensors", "dep:bytemuck"]
+
+# Disables MLX C++ build and provides dummy types
+stub = ["mlx-sys/stub"]

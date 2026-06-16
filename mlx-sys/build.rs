@@ -54,9 +54,37 @@ fn build_and_link_mlx_c() {
 }
 
 fn main() {
+    #[cfg(not(feature = "stub"))]
     build_and_link_mlx_c();
 
-    // generate bindings
+    #[cfg(not(feature = "stub"))]
+    {
+        // generate bindings
+        let bindings = bindgen::Builder::default()
+            .rust_target("1.73.0".parse().expect("rust-version"))
+            .header("src/mlx-c/mlx/c/mlx.h")
+            .header("src/mlx-c/mlx/c/linalg.h")
+            .header("src/mlx-c/mlx/c/error.h")
+            .header("src/mlx-c/mlx/c/transforms_impl.h")
+            .clang_arg("-Isrc/mlx-c")
+            .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
+            .generate()
+            .expect("Unable to generate bindings");
+
+        // Write the bindings to the $OUT_DIR/bindings.rs file.
+        let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+        bindings
+            .write_to_file(out_path.join("bindings.rs"))
+            .expect("Couldn't write bindings!");
+    }
+
+    #[cfg(feature = "stub")]
+    {
+        // Write a dummy bindings file so the crate compiles
+        let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+        std::fs::write(out_path.join("bindings.rs"), "pub type mlx_array = *mut std::ffi::c_void;").expect("dummy bindings");
+    }
+
     let bindings = bindgen::Builder::default()
         .rust_target("1.73.0".parse().expect("rust-version"))
         .header("src/mlx-c/mlx/c/mlx.h")
