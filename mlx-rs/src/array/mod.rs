@@ -302,6 +302,24 @@ impl Array {
         <() as Guarded>::try_from_op(|_| unsafe { mlx_sys::mlx_array_eval(self.as_ptr()) })
     }
 
+    /// Evaluate the array and materialize the result into a pre-allocated
+    /// output buffer (e.g. an IOSurface arena).
+    ///
+    /// Before evaluation, sets the allocator's output buffer hint so that
+    /// the Metal backend wraps `hint` as an `MTLBuffer` instead of
+    /// allocating fresh Metal memory.  Only the allocation whose size
+    /// exactly matches the hint is redirected; intermediate tensors use
+    /// the normal Metal heap.
+    pub fn evaluate_into(&self, hint: &impl crate::memory::OutputBufferHint) -> crate::error::Result<()> {
+        unsafe {
+            mlx_sys::mlx_set_output_buffer_hint(
+                hint.buffer_ptr() as *mut std::ffi::c_void,
+                hint.buffer_size(),
+            );
+        }
+        self.eval()
+    }
+
     /// Access the value of a scalar array.
     /// If `T` does not match the array's `dtype` this will convert the type first.
     ///

@@ -3,8 +3,17 @@ extern crate cmake;
 use cmake::Config;
 use std::{env, path::PathBuf};
 
+/// Path to the forked mlx-c C wrapper.  Set MLX_C_DIR env var to override.
+/// The fork points at Tribunus-dev/mlx.git (tag tribunus-v0.31.2) for
+/// the C++ core, which adds output buffer hint support for IOSurface
+/// materialization.
+fn mlx_c_dir() -> String {
+    std::env::var("MLX_C_DIR")
+        .unwrap_or_else(|_| "/Users/user/Developer/GitHub/mlx-c-fork".to_string())
+}
+
 fn build_and_link_mlx_c() {
-    let mut config = Config::new("src/mlx-c");
+    let mut config = Config::new(mlx_c_dir());
     config.very_verbose(true);
     config.define("CMAKE_INSTALL_PREFIX", ".");
 
@@ -56,14 +65,16 @@ fn build_and_link_mlx_c() {
 fn main() {
     build_and_link_mlx_c();
 
+    let dir = mlx_c_dir();
+
     // generate bindings
     let bindings = bindgen::Builder::default()
         .rust_target("1.73.0".parse().expect("rust-version"))
-        .header("src/mlx-c/mlx/c/mlx.h")
-        .header("src/mlx-c/mlx/c/linalg.h")
-        .header("src/mlx-c/mlx/c/error.h")
-        .header("src/mlx-c/mlx/c/transforms_impl.h")
-        .clang_arg("-Isrc/mlx-c")
+        .header(format!("{}/mlx/c/mlx.h", dir))
+        .header(format!("{}/mlx/c/linalg.h", dir))
+        .header(format!("{}/mlx/c/error.h", dir))
+        .header(format!("{}/mlx/c/transforms_impl.h", dir))
+        .clang_arg(format!("-I{}", dir))
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .generate()
         .expect("Unable to generate bindings");
@@ -75,7 +86,7 @@ fn main() {
         .expect("Couldn't write bindings!");
 
     // Emit build-generated version constants
-    let mlx_c_version = std::fs::read_to_string("src/mlx-c/VERSION")
+    let mlx_c_version = std::fs::read_to_string(format!("{}/VERSION", dir))
         .unwrap_or_else(|_| "0.6.0".to_string())
         .trim()
         .to_string();
