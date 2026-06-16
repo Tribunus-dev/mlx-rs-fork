@@ -112,9 +112,16 @@ pub unsafe extern "C" fn mlx_get_memory_limit(_res: *mut usize) {}
 #[no_mangle]
 pub unsafe extern "C" fn mlx_set_memory_limit(_prev: *mut usize, _limit: usize) {}
 #[no_mangle]
-pub unsafe extern "C" fn mlx_metal_is_available(_res: *mut bool) {}
+pub unsafe extern "C" fn mlx_metal_is_available(_res: *mut bool) -> i32 { 0 }
 #[no_mangle]
-pub unsafe extern "C" fn mlx_array_new_data_managed_payload(_data: *const std::ffi::c_void, _shape: *const i32, _dim: i32, _dtype: i32, _payload: *mut std::ffi::c_void, _dtor: *mut std::ffi::c_void) -> mlx_array { std::ptr::null_mut() }
+pub unsafe extern "C" fn mlx_array_new_data_managed_payload(
+    _data: *const std::ffi::c_void, 
+    _shape: *const i32, 
+    _dim: i32, 
+    _dtype: u32, 
+    _payload: *mut std::ffi::c_void, 
+    _dtor: Option<unsafe extern "C" fn(*mut std::ffi::c_void)>
+) -> mlx_array { std::ptr::null_mut() }
 #[no_mangle]
 pub unsafe extern "C" fn mlx_array_new() -> mlx_array { std::ptr::null_mut() }
 "#;
