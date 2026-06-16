@@ -124,8 +124,18 @@ pub unsafe extern "C" fn mlx_array_new_data_managed_payload(
 ) -> mlx_array { std::ptr::null_mut() }
 #[no_mangle]
 pub unsafe extern "C" fn mlx_fast_scaled_dot_product_attention(
-    _q: mlx_array, _k: mlx_array, _v: mlx_array, _scale: f32, _mask: mlx_array, _stream: mlx_stream
-) -> mlx_array { std::ptr::null_mut() }
+    _res: *mut mlx_array,
+    _q: mlx_array,
+    _k: mlx_array,
+    _v: mlx_array,
+    _scale: f32,
+    _mask_mode: *const std::ffi::c_char,
+    _mask_arr: mlx_array,
+    _sinks: mlx_array,
+    _stream: mlx_stream,
+) -> i32 {
+    0
+}
 #[no_mangle]
 pub unsafe extern "C" fn mlx_array_new() -> mlx_array { std::ptr::null_mut() }
 "#;
