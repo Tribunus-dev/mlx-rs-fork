@@ -81,7 +81,10 @@ fn main() {
     {
         // Write a dummy bindings file so the crate compiles
         let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
-        std::fs::write(out_path.join("bindings.rs"), "pub type mlx_array = *mut std::ffi::c_void;").expect("dummy bindings");
+        std::fs::write(
+            out_path.join("bindings.rs"), 
+            "pub type mlx_array = *mut std::ffi::c_void;\npub type mlx_stream = *mut std::ffi::c_void;"
+        ).expect("dummy bindings");
     }
 
     // Emit build-generated version constants

@@ -225,7 +225,7 @@ pub mod stub {
         }
         /// as_ptr
         pub fn as_ptr(&self) -> mlx_sys::mlx_array {
-            mlx_sys::mlx_array_ { ctx: std::ptr::null_mut() }
+            std::ptr::null_mut()
         }
         /// item
         pub fn item<T: Default>(&self) -> T {
@@ -435,8 +435,8 @@ pub mod stub {
         /// New
         pub fn new() -> Self { Self }
         /// as_ptr
-        pub fn as_ptr(&self) -> mlx_sys::mlx_stream {
-            mlx_sys::mlx_stream_ { ctx: std::ptr::null_mut() }
+        pub fn as_ptr(&self) -> *mut std::ffi::c_void {
+            std::ptr::null_mut()
         }
     }
 
