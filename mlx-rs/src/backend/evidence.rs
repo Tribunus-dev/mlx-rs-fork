@@ -1,3 +1,5 @@
+//! Backend evidence collection for MLX operations.
+
 use super::capabilities::{ImplementationKind, SupportStatus};
 use super::tensor::TensorSpec;
 

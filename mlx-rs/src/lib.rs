@@ -41,12 +41,14 @@ pub mod quantization;
 #[cfg(not(feature = "stub"))]
 pub mod random;
 #[cfg(not(feature = "stub"))]
+/// Stream types for MLX operations.
 pub mod stream;
 #[cfg(not(feature = "stub"))]
 pub mod transforms;
 #[cfg(not(feature = "stub"))]
 pub mod utils;
 #[cfg(not(feature = "stub"))]
+/// Backend foundation module (evidence, capabilities, reference ops).
 pub mod backend;
 
 #[cfg(feature = "stub")]
