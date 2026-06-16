@@ -46,6 +46,8 @@ pub mod stream;
 pub mod transforms;
 #[cfg(not(feature = "stub"))]
 pub mod utils;
+#[cfg(not(feature = "stub"))]
+pub mod backend;
 
 #[cfg(feature = "stub")]
 /// Dummy types for stub mode

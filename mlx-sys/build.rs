@@ -40,16 +40,22 @@ fn build_and_link_mlx_c() {
 
     println!("cargo:rustc-link-lib=c++");
     println!("cargo:rustc-link-lib=dylib=objc");
-    println!("cargo:rustc-link-lib=framework=Foundation");
+    if std::env::var("CARGO_CFG_TARGET_OS").unwrap() == "macos" || std::env::var("CARGO_CFG_TARGET_OS").unwrap() == "ios" {
+        println!("cargo:rustc-link-lib=framework=Foundation");
+    }
 
     #[cfg(feature = "metal")]
     {
-        println!("cargo:rustc-link-lib=framework=Metal");
+        if std::env::var("CARGO_CFG_TARGET_OS").unwrap() == "macos" || std::env::var("CARGO_CFG_TARGET_OS").unwrap() == "ios" {
+            println!("cargo:rustc-link-lib=framework=Metal");
+        }
     }
 
     #[cfg(feature = "accelerate")]
     {
-        println!("cargo:rustc-link-lib=framework=Accelerate");
+        if std::env::var("CARGO_CFG_TARGET_OS").unwrap() == "macos" || std::env::var("CARGO_CFG_TARGET_OS").unwrap() == "ios" {
+            println!("cargo:rustc-link-lib=framework=Accelerate");
+        }
     }
 }
 

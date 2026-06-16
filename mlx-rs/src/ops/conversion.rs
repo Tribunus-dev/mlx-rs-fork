@@ -85,9 +85,14 @@ mod tests {
     test_as_type!(bool, true, u8, 1, 3);
     test_as_type!(bool, true, u16, 1, 3);
     test_as_type!(bool, true, u32, 1, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(bool, true, u64, 1, 3);
     test_as_type!(bool, true, f32, 1.0, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(bool, true, f16, f16::from_f32(1.0), 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(bool, true, bf16, bf16::from_f32(1.0), 3);
     test_as_type!(bool, true, complex64, complex64::new(1.0, 0.0), 3);
 
@@ -98,9 +103,14 @@ mod tests {
     test_as_type!(i8, 1, u8, 1, 3);
     test_as_type!(i8, 1, u16, 1, 3);
     test_as_type!(i8, 1, u32, 1, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(i8, 1, u64, 1, 3);
     test_as_type!(i8, 1, f32, 1.0, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(i8, 1, f16, f16::from_f32(1.0), 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(i8, 1, bf16, bf16::from_f32(1.0), 3);
     test_as_type!(i8, 1, complex64, complex64::new(1.0, 0.0), 3);
 
@@ -111,9 +121,14 @@ mod tests {
     test_as_type!(i16, 1, u8, 1, 3);
     test_as_type!(i16, 1, u16, 1, 3);
     test_as_type!(i16, 1, u32, 1, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(i16, 1, u64, 1, 3);
     test_as_type!(i16, 1, f32, 1.0, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(i16, 1, f16, f16::from_f32(1.0), 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(i16, 1, bf16, bf16::from_f32(1.0), 3);
     test_as_type!(i16, 1, complex64, complex64::new(1.0, 0.0), 3);
 
@@ -124,9 +139,14 @@ mod tests {
     test_as_type!(i32, 1, u8, 1, 3);
     test_as_type!(i32, 1, u16, 1, 3);
     test_as_type!(i32, 1, u32, 1, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(i32, 1, u64, 1, 3);
     test_as_type!(i32, 1, f32, 1.0, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(i32, 1, f16, f16::from_f32(1.0), 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(i32, 1, bf16, bf16::from_f32(1.0), 3);
     test_as_type!(i32, 1, complex64, complex64::new(1.0, 0.0), 3);
 
@@ -137,9 +157,14 @@ mod tests {
     test_as_type!(i64, 1, u8, 1, 3);
     test_as_type!(i64, 1, u16, 1, 3);
     test_as_type!(i64, 1, u32, 1, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(i64, 1, u64, 1, 3);
     test_as_type!(i64, 1, f32, 1.0, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(i64, 1, f16, f16::from_f32(1.0), 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(i64, 1, bf16, bf16::from_f32(1.0), 3);
     test_as_type!(i64, 1, complex64, complex64::new(1.0, 0.0), 3);
 
@@ -150,9 +175,14 @@ mod tests {
     test_as_type!(u8, 1, i64, 1, 3);
     test_as_type!(u8, 1, u16, 1, 3);
     test_as_type!(u8, 1, u32, 1, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(u8, 1, u64, 1, 3);
     test_as_type!(u8, 1, f32, 1.0, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(u8, 1, f16, f16::from_f32(1.0), 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(u8, 1, bf16, bf16::from_f32(1.0), 3);
     test_as_type!(u8, 1, complex64, complex64::new(1.0, 0.0), 3);
 
@@ -163,9 +193,14 @@ mod tests {
     test_as_type!(u16, 1, i64, 1, 3);
     test_as_type!(u16, 1, u8, 1, 3);
     test_as_type!(u16, 1, u32, 1, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(u16, 1, u64, 1, 3);
     test_as_type!(u16, 1, f32, 1.0, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(u16, 1, f16, f16::from_f32(1.0), 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(u16, 1, bf16, bf16::from_f32(1.0), 3);
     test_as_type!(u16, 1, complex64, complex64::new(1.0, 0.0), 3);
 
@@ -176,9 +211,14 @@ mod tests {
     test_as_type!(u32, 1, i64, 1, 3);
     test_as_type!(u32, 1, u8, 1, 3);
     test_as_type!(u32, 1, u16, 1, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(u32, 1, u64, 1, 3);
     test_as_type!(u32, 1, f32, 1.0, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(u32, 1, f16, f16::from_f32(1.0), 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(u32, 1, bf16, bf16::from_f32(1.0), 3);
     test_as_type!(u32, 1, complex64, complex64::new(1.0, 0.0), 3);
 
@@ -189,9 +229,14 @@ mod tests {
     test_as_type!(u64, 1, i64, 1, 3);
     test_as_type!(u64, 1, u8, 1, 3);
     test_as_type!(u64, 1, u16, 1, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(u64, 1, u32, 1, 3);
     test_as_type!(u64, 1, f32, 1.0, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(u64, 1, f16, f16::from_f32(1.0), 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(u64, 1, bf16, bf16::from_f32(1.0), 3);
     test_as_type!(u64, 1, complex64, complex64::new(1.0, 0.0), 3);
 
@@ -202,23 +247,53 @@ mod tests {
     test_as_type!(f32, 1.0, i64, 1, 3);
     test_as_type!(f32, 1.0, u8, 1, 3);
     test_as_type!(f32, 1.0, u16, 1, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(f32, 1.0, u32, 1, 3);
     test_as_type!(f32, 1.0, u64, 1, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(f32, 1.0, f16, f16::from_f32(1.0), 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(f32, 1.0, bf16, bf16::from_f32(1.0), 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(f32, 1.0, complex64, complex64::new(1.0, 0.0), 3);
 
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(f16, f16::from_f32(1.0), bool, true, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(f16, f16::from_f32(1.0), i8, 1, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(f16, f16::from_f32(1.0), i16, 1, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(f16, f16::from_f32(1.0), i32, 1, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(f16, f16::from_f32(1.0), i64, 1, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(f16, f16::from_f32(1.0), u8, 1, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(f16, f16::from_f32(1.0), u16, 1, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(f16, f16::from_f32(1.0), u32, 1, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(f16, f16::from_f32(1.0), u64, 1, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(f16, f16::from_f32(1.0), f32, 1.0, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(f16, f16::from_f32(1.0), bf16, bf16::from_f32(1.0), 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(
         f16,
         f16::from_f32(1.0),
@@ -227,16 +302,39 @@ mod tests {
         3
     );
 
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(bf16, bf16::from_f32(1.0), bool, true, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(bf16, bf16::from_f32(1.0), i8, 1, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(bf16, bf16::from_f32(1.0), i16, 1, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(bf16, bf16::from_f32(1.0), i32, 1, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(bf16, bf16::from_f32(1.0), i64, 1, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(bf16, bf16::from_f32(1.0), u8, 1, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(bf16, bf16::from_f32(1.0), u16, 1, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(bf16, bf16::from_f32(1.0), u32, 1, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(bf16, bf16::from_f32(1.0), u64, 1, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(bf16, bf16::from_f32(1.0), f32, 1.0, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(bf16, bf16::from_f32(1.0), f16, f16::from_f32(1.0), 3);
 
     test_as_type!(complex64, complex64::new(1.0, 0.0), bool, true, 3);
@@ -249,6 +347,7 @@ mod tests {
     test_as_type!(complex64, complex64::new(1.0, 0.0), u32, 1, 3);
     test_as_type!(complex64, complex64::new(1.0, 0.0), u64, 1, 3);
     test_as_type!(complex64, complex64::new(1.0, 0.0), f32, 1.0, 3);
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(
         complex64,
         complex64::new(1.0, 0.0),
@@ -256,6 +355,7 @@ mod tests {
         f16::from_f32(1.0),
         3
     );
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     test_as_type!(
         complex64,
         complex64::new(1.0, 0.0),

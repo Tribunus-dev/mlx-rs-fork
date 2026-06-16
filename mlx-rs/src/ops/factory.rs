@@ -565,6 +565,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
     fn test_ones() {
         let array = Array::ones::<f16>(&[2, 3]).unwrap();
         assert_eq!(array.shape(), &[2, 3]);

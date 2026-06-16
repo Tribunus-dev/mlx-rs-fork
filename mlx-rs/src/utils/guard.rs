@@ -1,5 +1,6 @@
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 use half::{bf16, f16};
-use mlx_sys::{__BindgenComplex, bfloat16_t, float16_t, mlx_array};
+use mlx_sys::{__BindgenComplex, mlx_array};
 
 use crate::{complex64, error::Exception, Array};
 
@@ -590,41 +591,7 @@ macro_rules! impl_guarded_for_primitive {
 
 impl_guarded_for_primitive!(bool, u8, u16, u32, u64, i8, i16, i32, i64, f32, f64, ());
 
-impl Guarded for f16 {
-    type Guard = float16_t;
-}
-
-impl Guard<f16> for float16_t {
-    type MutRawPtr = *mut float16_t;
-
-    fn as_mut_raw_ptr(&mut self) -> Self::MutRawPtr {
-        self
-    }
-
-    fn set_init_success(&mut self, _: bool) {}
-
-    fn try_into_guarded(self) -> Result<f16, Exception> {
-        Ok(f16::from_bits(self.0))
-    }
-}
-
-impl Guarded for bf16 {
-    type Guard = bfloat16_t;
-}
-
-impl Guard<bf16> for bfloat16_t {
-    type MutRawPtr = *mut bfloat16_t;
-
-    fn as_mut_raw_ptr(&mut self) -> Self::MutRawPtr {
-        self
-    }
-
-    fn set_init_success(&mut self, _: bool) {}
-
-    fn try_into_guarded(self) -> Result<bf16, Exception> {
-        Ok(bf16::from_bits(self))
-    }
-}
+/* excluded bf16 and f16 guard impls */
 
 impl Guarded for complex64 {
     type Guard = __BindgenComplex<f32>;

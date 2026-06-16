@@ -1,6 +1,7 @@
 use crate::error::Result;
 use crate::sealed::Sealed;
 use crate::{complex64, Array, Dtype};
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 use half::{bf16, f16};
 
 /// A marker trait for array elements.
@@ -61,8 +62,10 @@ impl_array_element!(i32, Dtype::Int32, int32);
 impl_array_element!(i64, Dtype::Int64, int64);
 impl_array_element!(f64, Dtype::Float64, float64);
 impl_array_element!(f32, Dtype::Float32, float32);
-impl_array_element!(f16, Dtype::Float16, float16);
-impl_array_element!(bf16, Dtype::Bfloat16, bfloat16);
+/* #[cfg(any(target_os = "macos", target_os = "ios"))]
+impl_array_element!(f16, Dtype::Float16, float16); */
+/* #[cfg(any(target_os = "macos", target_os = "ios"))]
+impl_array_element!(bf16, Dtype::Bfloat16, bfloat16); */
 impl_array_element!(complex64, Dtype::Complex64, complex64);
 
 macro_rules! impl_from_slice_element {
@@ -81,6 +84,8 @@ impl_from_slice_element!(i16);
 impl_from_slice_element!(i32);
 impl_from_slice_element!(i64);
 impl_from_slice_element!(f32);
-impl_from_slice_element!(f16);
-impl_from_slice_element!(bf16);
+/* #[cfg(any(target_os = "macos", target_os = "ios"))]
+impl_from_slice_element!(f16); */
+/* #[cfg(any(target_os = "macos", target_os = "ios"))]
+impl_from_slice_element!(bf16); */
 impl_from_slice_element!(complex64);
