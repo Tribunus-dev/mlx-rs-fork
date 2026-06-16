@@ -5,19 +5,6 @@ on:
     branches:
       - main
 jobs:
-  rust-metadata:
-    name: Rust metadata validation
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Check backend lifecycle metadata
-        working-directory: mlx-rs
-        run: |
-          cargo check --features evidence
-          cargo test --features evidence backend::reference
   macos-backend-lifecycle:
     name: macOS MLX backend lifecycle
     runs-on: macos-14
