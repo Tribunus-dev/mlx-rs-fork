@@ -1,6 +1,10 @@
 use mlx_internal_macros::{default_device, generate_macro};
 
-use crate::{error::Result, utils::{guard::Guarded, VectorArray}, Array, Stream};
+use crate::{
+    error::Result,
+    utils::{guard::Guarded, VectorArray},
+    Array, Stream,
+};
 
 /// Quantize the matrix `w` using `bits` bits per element.
 ///
@@ -30,8 +34,14 @@ pub fn quantize_device(
     let group_size = group_size.into().unwrap_or(64);
     let bits = bits.into().unwrap_or(4);
 
-    let group_size = mlx_sys::mlx_optional_int_ { value: group_size, has_value: true };
-    let bits = mlx_sys::mlx_optional_int_ { value: bits, has_value: true };
+    let group_size = mlx_sys::mlx_optional_int_ {
+        value: group_size,
+        has_value: true,
+    };
+    let bits = mlx_sys::mlx_optional_int_ {
+        value: bits,
+        has_value: true,
+    };
 
     let v = VectorArray::try_from_op(|res| unsafe {
         mlx_sys::mlx_quantize(
@@ -39,7 +49,9 @@ pub fn quantize_device(
             w.as_ref().as_ptr(),
             group_size,
             bits,
-            std::ffi::CStr::from_bytes_with_nul(b"affine\0").unwrap().as_ptr(),
+            std::ffi::CStr::from_bytes_with_nul(b"affine\0")
+                .unwrap()
+                .as_ptr(),
             mlx_sys::mlx_array_new(),
             stream.as_ref().as_ptr(),
         )
@@ -82,9 +94,17 @@ pub fn quantized_matmul_device(
             scales.as_ref().as_ptr(),
             biases.as_ref().as_ptr(),
             transpose,
-            mlx_sys::mlx_optional_int_ { value: group_size, has_value: true },
-            mlx_sys::mlx_optional_int_ { value: bits, has_value: true },
-            std::ffi::CStr::from_bytes_with_nul(b"affine\0").unwrap().as_ptr(),
+            mlx_sys::mlx_optional_int_ {
+                value: group_size,
+                has_value: true,
+            },
+            mlx_sys::mlx_optional_int_ {
+                value: bits,
+                has_value: true,
+            },
+            std::ffi::CStr::from_bytes_with_nul(b"affine\0")
+                .unwrap()
+                .as_ptr(),
             stream.as_ref().as_ptr(),
         )
     })
@@ -113,11 +133,22 @@ pub fn dequantize_device(
             w.as_ref().as_ptr(),
             scales.as_ref().as_ptr(),
             biases.as_ref().as_ptr(),
-            mlx_sys::mlx_optional_int_ { value: group_size, has_value: true },
-            mlx_sys::mlx_optional_int_ { value: bits, has_value: true },
-            std::ffi::CStr::from_bytes_with_nul(b"affine\0").unwrap().as_ptr(),
+            mlx_sys::mlx_optional_int_ {
+                value: group_size,
+                has_value: true,
+            },
+            mlx_sys::mlx_optional_int_ {
+                value: bits,
+                has_value: true,
+            },
+            std::ffi::CStr::from_bytes_with_nul(b"affine\0")
+                .unwrap()
+                .as_ptr(),
             mlx_sys::mlx_array_new(),
-            mlx_sys::mlx_optional_dtype_ { value: mlx_sys::mlx_dtype__MLX_FLOAT32, has_value: false },
+            mlx_sys::mlx_optional_dtype_ {
+                value: mlx_sys::mlx_dtype__MLX_FLOAT32,
+                has_value: false,
+            },
             stream.as_ref().as_ptr(),
         )
     })

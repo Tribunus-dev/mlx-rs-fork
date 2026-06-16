@@ -16,15 +16,11 @@ pub fn mul_f32(a: &[f32], b: &[f32]) -> Vec<f32> {
 }
 
 pub fn sigmoid_f32(data: &[f32]) -> Vec<f32> {
-    data.iter()
-        .map(|&x| 1.0 / (1.0 + (-x).exp()))
-        .collect()
+    data.iter().map(|&x| 1.0 / (1.0 + (-x).exp())).collect()
 }
 
 pub fn silu_f32(data: &[f32]) -> Vec<f32> {
-    data.iter()
-        .map(|&x| x / (1.0 + (-x).exp()))
-        .collect()
+    data.iter().map(|&x| x / (1.0 + (-x).exp())).collect()
 }
 
 /// Naive 2D Matrix multiplication.
@@ -46,7 +42,11 @@ pub fn matmul_f32(a: &[f32], b: &[f32], m: usize, k: usize, n: usize) -> Vec<f32
 }
 
 pub fn reshape_f32(data: &[f32], new_len: usize) -> Vec<f32> {
-    assert_eq!(data.len(), new_len, "Reshape requires same number of elements");
+    assert_eq!(
+        data.len(),
+        new_len,
+        "Reshape requires same number of elements"
+    );
     data.to_vec()
 }
 

@@ -1,6 +1,6 @@
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 use half::{bf16, f16};
-use mlx_sys::{__BindgenComplex,  mlx_array};
+use mlx_sys::{__BindgenComplex, mlx_array};
 
 use crate::{complex64, error::Exception, Array};
 

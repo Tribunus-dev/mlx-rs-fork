@@ -277,8 +277,7 @@
 //! Please refer to the compilation module ([`transforms::compile`]) for more
 //! details.
 
-#![deny(unused_unsafe, missing_debug_implementations)]
-#![allow(missing_docs)]
+#![deny(unused_unsafe, missing_debug_implementations, missing_docs)]
 #![cfg_attr(test, allow(clippy::approx_constant))]
 
 #[macro_use]

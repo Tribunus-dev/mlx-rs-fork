@@ -56,3 +56,109 @@ pub struct MlxBackendCapabilities {
     pub known_limitations: Vec<String>,
     // TODO: Add `capability_hash` once canonical serialization rules are defined.
 }
+
+impl MlxBackendCapabilities {
+    /// Detects and constructs the static capability report dynamically.
+    pub fn detect() -> Self {
+        Self {
+            schema_version: "tribunus.mlx.backend_capabilities.v0".into(),
+            crate_version: env!("CARGO_PKG_VERSION").into(),
+            git_commit_hash: None,
+            enabled_features: vec!["evidence".into()],
+            platform: PlatformSummary {
+                os: std::env::consts::OS.into(),
+                architecture: std::env::consts::ARCH.into(),
+                is_apple: std::env::consts::OS == "macos",
+                is_apple_silicon: std::env::consts::OS == "macos"
+                    && std::env::consts::ARCH == "aarch64",
+                metal_available: None,
+            },
+            mlx_runtime_version: None,
+            supported_dtypes: vec![DType::F32],
+            supported_devices: vec!["CPU".into()],
+            supported_operations: vec![
+                OperationEntry {
+                    name: "identity".into(),
+                    support_status: SupportStatus::Supported,
+                    implementation_kind: ImplementationKind::NativeMlx,
+                    supported_dtypes: vec![DType::F32],
+                    shape_notes: None,
+                    limitations: None,
+                },
+                OperationEntry {
+                    name: "constant".into(),
+                    support_status: SupportStatus::Supported,
+                    implementation_kind: ImplementationKind::NativeMlx,
+                    supported_dtypes: vec![DType::F32],
+                    shape_notes: None,
+                    limitations: None,
+                },
+                OperationEntry {
+                    name: "add".into(),
+                    support_status: SupportStatus::Supported,
+                    implementation_kind: ImplementationKind::NativeMlx,
+                    supported_dtypes: vec![DType::F32],
+                    shape_notes: None,
+                    limitations: None,
+                },
+                OperationEntry {
+                    name: "multiply".into(),
+                    support_status: SupportStatus::Supported,
+                    implementation_kind: ImplementationKind::NativeMlx,
+                    supported_dtypes: vec![DType::F32],
+                    shape_notes: None,
+                    limitations: None,
+                },
+                OperationEntry {
+                    name: "matmul".into(),
+                    support_status: SupportStatus::Supported,
+                    implementation_kind: ImplementationKind::NativeMlx,
+                    supported_dtypes: vec![DType::F32],
+                    shape_notes: None,
+                    limitations: None,
+                },
+                OperationEntry {
+                    name: "reshape".into(),
+                    support_status: SupportStatus::Supported,
+                    implementation_kind: ImplementationKind::NativeMlx,
+                    supported_dtypes: vec![DType::F32],
+                    shape_notes: None,
+                    limitations: None,
+                },
+                OperationEntry {
+                    name: "transpose".into(),
+                    support_status: SupportStatus::Supported,
+                    implementation_kind: ImplementationKind::NativeMlx,
+                    supported_dtypes: vec![DType::F32],
+                    shape_notes: None,
+                    limitations: None,
+                },
+                OperationEntry {
+                    name: "sigmoid".into(),
+                    support_status: SupportStatus::Supported,
+                    implementation_kind: ImplementationKind::NativeMlx,
+                    supported_dtypes: vec![DType::F32],
+                    shape_notes: None,
+                    limitations: None,
+                },
+                OperationEntry {
+                    name: "softmax".into(),
+                    support_status: SupportStatus::Supported,
+                    implementation_kind: ImplementationKind::NativeMlx,
+                    supported_dtypes: vec![DType::F32],
+                    shape_notes: None,
+                    limitations: None,
+                },
+                OperationEntry {
+                    name: "silu".into(),
+                    support_status: SupportStatus::Supported,
+                    implementation_kind: ImplementationKind::ComposedMlx,
+                    supported_dtypes: vec![DType::F32],
+                    shape_notes: None,
+                    limitations: None,
+                },
+            ],
+            known_limitations: vec!["Canonical hash computation deferred.".into()],
+        }
+    }
+}

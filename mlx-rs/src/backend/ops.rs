@@ -1,9 +1,9 @@
-use super::error::{MlxError, MlxResult};
-use super::evidence::{ConformanceEvidence, NumericalComparison, MlxErrorReport};
-use super::capabilities::{MlxBackendCapabilities, ImplementationKind, SupportStatus};
-use super::tensor::{TensorSpec, DevicePreference};
+use super::capabilities::{ImplementationKind, MlxBackendCapabilities, SupportStatus};
 use super::dtype::DType;
+use super::error::{MlxError, MlxResult};
+use super::evidence::{ConformanceEvidence, MlxErrorReport, NumericalComparison};
 use super::reference;
+use super::tensor::{DevicePreference, TensorSpec};
 use crate::Array;
 
 /// Runs conformance tests for MLX backend.
@@ -21,7 +21,11 @@ fn array_to_spec(_name: &str, arr: &Array) -> TensorSpec {
     )
 }
 
-fn compare_f32(actual: &[f32], expected: &[f32], tol_abs: f64) -> (bool, Option<NumericalComparison>) {
+fn compare_f32(
+    actual: &[f32],
+    expected: &[f32],
+    tol_abs: f64,
+) -> (bool, Option<NumericalComparison>) {
     if actual.len() != expected.len() {
         return (false, None);
     }
@@ -37,20 +41,34 @@ fn compare_f32(actual: &[f32], expected: &[f32], tol_abs: f64) -> (bool, Option<
         let a = actual[i] as f64;
         let e = expected[i] as f64;
 
-        if a.is_nan() { nan_count += 1; }
-        if a.is_infinite() { inf_count += 1; }
+        if a.is_nan() {
+            nan_count += 1;
+        }
+        if a.is_infinite() {
+            inf_count += 1;
+        }
 
         if a.is_nan() || e.is_nan() {
-            if first_mismatch.is_none() { first_mismatch = Some(i); }
+            if first_mismatch.is_none() {
+                first_mismatch = Some(i);
+            }
             continue;
         }
 
         let abs_diff = (a - e).abs();
-        let rel_diff = if e.abs() > 0.0 { abs_diff / e.abs() } else { 0.0 };
+        let rel_diff = if e.abs() > 0.0 {
+            abs_diff / e.abs()
+        } else {
+            0.0
+        };
 
-        if abs_diff > max_abs { max_abs = abs_diff; }
+        if abs_diff > max_abs {
+            max_abs = abs_diff;
+        }
         mean_abs += abs_diff;
-        if rel_diff > max_rel { max_rel = rel_diff; }
+        if rel_diff > max_rel {
+            max_rel = rel_diff;
+        }
 
         if abs_diff > tol_abs && first_mismatch.is_none() {
             first_mismatch = Some(i);
@@ -60,18 +78,21 @@ fn compare_f32(actual: &[f32], expected: &[f32], tol_abs: f64) -> (bool, Option<
 
     let passed = nan_count == 0 && inf_count == 0 && max_abs <= tol_abs;
 
-    (passed, Some(NumericalComparison {
-        reference: "CPU F32".to_string(),
-        tolerance_abs: tol_abs,
-        tolerance_rel: 0.0,
-        max_abs_error: max_abs,
-        mean_abs_error: mean_abs,
-        max_rel_error: max_rel,
-        nan_count,
-        inf_count,
-        first_mismatch_index: first_mismatch,
+    (
         passed,
-    }))
+        Some(NumericalComparison {
+            reference: "CPU F32".to_string(),
+            tolerance_abs: tol_abs,
+            tolerance_rel: 0.0,
+            max_abs_error: max_abs,
+            mean_abs_error: mean_abs,
+            max_rel_error: max_rel,
+            nan_count,
+            inf_count,
+            first_mismatch_index: first_mismatch,
+            passed,
+        }),
+    )
 }
 
 impl BackendConformanceRunner {
@@ -128,7 +149,7 @@ impl BackendConformanceRunner {
         eval_forced: bool,
         readback_performed: bool,
         comparison: Option<NumericalComparison>,
-        err: Option<MlxError>
+        err: Option<MlxError>,
     ) -> ConformanceEvidence {
         let err_report = err.as_ref().map(|e| MlxErrorReport {
             category: match e {
@@ -137,7 +158,7 @@ impl BackendConformanceRunner {
                 MlxError::EvaluationFailed(_) => "EvaluationFailed".into(),
                 MlxError::ReadbackFailed(_) => "ReadbackFailed".into(),
                 MlxError::NumericalMismatch => "NumericalMismatch".into(),
-                _ => "Other".into()
+                _ => "Other".into(),
             },
             message: e.to_string(),
         });
@@ -188,11 +209,23 @@ impl BackendConformanceRunner {
                 if !passed {
                     err_opt = Some(MlxError::NumericalMismatch);
                 }
-            },
-            Err(e) => { err_opt = Some(e); }
+            }
+            Err(e) => {
+                err_opt = Some(e);
+            }
         }
 
-        self.build_evidence("identity_f32", "identity", ImplementationKind::NativeMlx, vec![spec_in], vec![spec_out], eval_forced, readback, comp, err_opt)
+        self.build_evidence(
+            "identity_f32",
+            "identity",
+            ImplementationKind::NativeMlx,
+            vec![spec_in],
+            vec![spec_out],
+            eval_forced,
+            readback,
+            comp,
+            err_opt,
+        )
     }
 
     fn test_constant(&self) -> ConformanceEvidence {
@@ -217,11 +250,23 @@ impl BackendConformanceRunner {
                 if !passed {
                     err_opt = Some(MlxError::NumericalMismatch);
                 }
-            },
-            Err(e) => { err_opt = Some(e); }
+            }
+            Err(e) => {
+                err_opt = Some(e);
+            }
         }
 
-        self.build_evidence("constant_f32", "constant", ImplementationKind::NativeMlx, vec![], vec![spec_out], eval_forced, readback, comp, err_opt)
+        self.build_evidence(
+            "constant_f32",
+            "constant",
+            ImplementationKind::NativeMlx,
+            vec![],
+            vec![spec_out],
+            eval_forced,
+            readback,
+            comp,
+            err_opt,
+        )
     }
 
     fn test_add(&self) -> ConformanceEvidence {
@@ -234,9 +279,35 @@ impl BackendConformanceRunner {
         let spec_a = array_to_spec("a", &a_arr);
         let spec_b = array_to_spec("b", &b_arr);
 
+        if spec_a.shape != spec_b.shape {
+            return self.build_evidence(
+                "add_f32",
+                "add",
+                ImplementationKind::NativeMlx,
+                vec![spec_a, spec_b],
+                vec![],
+                false,
+                false,
+                None,
+                Some(MlxError::UnsupportedShape),
+            );
+        }
+
         let out = match crate::ops::add(&a_arr, &b_arr) {
             Ok(val) => val,
-            Err(e) => return self.build_evidence("add_f32", "add", ImplementationKind::NativeMlx, vec![spec_a, spec_b], vec![], false, false, None, Some(MlxError::External(e.what)))
+            Err(e) => {
+                return self.build_evidence(
+                    "add_f32",
+                    "add",
+                    ImplementationKind::NativeMlx,
+                    vec![spec_a, spec_b],
+                    vec![],
+                    false,
+                    false,
+                    None,
+                    Some(MlxError::EvaluationFailed(e.what)),
+                )
+            }
         };
         let spec_out = array_to_spec("output", &out);
 
@@ -255,11 +326,23 @@ impl BackendConformanceRunner {
                 if !passed {
                     err_opt = Some(MlxError::NumericalMismatch);
                 }
-            },
-            Err(e) => { err_opt = Some(e); }
+            }
+            Err(e) => {
+                err_opt = Some(e);
+            }
         }
 
-        self.build_evidence("add_f32", "add", ImplementationKind::NativeMlx, vec![spec_a, spec_b], vec![spec_out], eval_forced, readback, comp, err_opt)
+        self.build_evidence(
+            "add_f32",
+            "add",
+            ImplementationKind::NativeMlx,
+            vec![spec_a, spec_b],
+            vec![spec_out],
+            eval_forced,
+            readback,
+            comp,
+            err_opt,
+        )
     }
 
     fn test_mul(&self) -> ConformanceEvidence {
@@ -272,9 +355,35 @@ impl BackendConformanceRunner {
         let spec_a = array_to_spec("a", &a_arr);
         let spec_b = array_to_spec("b", &b_arr);
 
+        if spec_a.shape != spec_b.shape {
+            return self.build_evidence(
+                "mul_f32",
+                "multiply",
+                ImplementationKind::NativeMlx,
+                vec![spec_a, spec_b],
+                vec![],
+                false,
+                false,
+                None,
+                Some(MlxError::UnsupportedShape),
+            );
+        }
+
         let out = match crate::ops::multiply(&a_arr, &b_arr) {
             Ok(val) => val,
-            Err(e) => return self.build_evidence("mul_f32", "multiply", ImplementationKind::NativeMlx, vec![spec_a, spec_b], vec![], false, false, None, Some(MlxError::External(e.what)))
+            Err(e) => {
+                return self.build_evidence(
+                    "mul_f32",
+                    "multiply",
+                    ImplementationKind::NativeMlx,
+                    vec![spec_a, spec_b],
+                    vec![],
+                    false,
+                    false,
+                    None,
+                    Some(MlxError::EvaluationFailed(e.what)),
+                )
+            }
         };
         let spec_out = array_to_spec("output", &out);
 
@@ -293,11 +402,23 @@ impl BackendConformanceRunner {
                 if !passed {
                     err_opt = Some(MlxError::NumericalMismatch);
                 }
-            },
-            Err(e) => { err_opt = Some(e); }
+            }
+            Err(e) => {
+                err_opt = Some(e);
+            }
         }
 
-        self.build_evidence("mul_f32", "multiply", ImplementationKind::NativeMlx, vec![spec_a, spec_b], vec![spec_out], eval_forced, readback, comp, err_opt)
+        self.build_evidence(
+            "mul_f32",
+            "multiply",
+            ImplementationKind::NativeMlx,
+            vec![spec_a, spec_b],
+            vec![spec_out],
+            eval_forced,
+            readback,
+            comp,
+            err_opt,
+        )
     }
 
     fn test_sigmoid(&self) -> ConformanceEvidence {
@@ -308,7 +429,19 @@ impl BackendConformanceRunner {
 
         let out = match crate::ops::sigmoid(&arr) {
             Ok(val) => val,
-            Err(e) => return self.build_evidence("sigmoid_f32", "sigmoid", ImplementationKind::NativeMlx, vec![spec_in.clone()], vec![], false, false, None, Some(MlxError::External(e.what)))
+            Err(e) => {
+                return self.build_evidence(
+                    "sigmoid_f32",
+                    "sigmoid",
+                    ImplementationKind::NativeMlx,
+                    vec![spec_in.clone()],
+                    vec![],
+                    false,
+                    false,
+                    None,
+                    Some(MlxError::EvaluationFailed(e.what)),
+                )
+            }
         };
         let spec_out = array_to_spec("output", &out);
 
@@ -327,11 +460,23 @@ impl BackendConformanceRunner {
                 if !passed {
                     err_opt = Some(MlxError::NumericalMismatch);
                 }
-            },
-            Err(e) => { err_opt = Some(e); }
+            }
+            Err(e) => {
+                err_opt = Some(e);
+            }
         }
 
-        self.build_evidence("sigmoid_f32", "sigmoid", ImplementationKind::NativeMlx, vec![spec_in], vec![spec_out], eval_forced, readback, comp, err_opt)
+        self.build_evidence(
+            "sigmoid_f32",
+            "sigmoid",
+            ImplementationKind::NativeMlx,
+            vec![spec_in],
+            vec![spec_out],
+            eval_forced,
+            readback,
+            comp,
+            err_opt,
+        )
     }
 
     fn test_silu(&self) -> ConformanceEvidence {
@@ -342,11 +487,35 @@ impl BackendConformanceRunner {
 
         let sig = match crate::ops::sigmoid(&arr) {
             Ok(val) => val,
-            Err(e) => return self.build_evidence("silu_f32", "silu", ImplementationKind::ComposedMlx, vec![spec_in.clone()], vec![], false, false, None, Some(MlxError::External(e.what)))
+            Err(e) => {
+                return self.build_evidence(
+                    "silu_f32",
+                    "silu",
+                    ImplementationKind::ComposedMlx,
+                    vec![spec_in.clone()],
+                    vec![],
+                    false,
+                    false,
+                    None,
+                    Some(MlxError::EvaluationFailed(e.what)),
+                )
+            }
         };
         let out = match crate::ops::multiply(&arr, &sig) {
             Ok(val) => val,
-            Err(e) => return self.build_evidence("silu_f32", "silu", ImplementationKind::ComposedMlx, vec![spec_in.clone()], vec![], false, false, None, Some(MlxError::External(e.what)))
+            Err(e) => {
+                return self.build_evidence(
+                    "silu_f32",
+                    "silu",
+                    ImplementationKind::ComposedMlx,
+                    vec![spec_in.clone()],
+                    vec![],
+                    false,
+                    false,
+                    None,
+                    Some(MlxError::EvaluationFailed(e.what)),
+                )
+            }
         };
         let spec_out = array_to_spec("output", &out);
 
@@ -365,25 +534,66 @@ impl BackendConformanceRunner {
                 if !passed {
                     err_opt = Some(MlxError::NumericalMismatch);
                 }
-            },
-            Err(e) => { err_opt = Some(e); }
+            }
+            Err(e) => {
+                err_opt = Some(e);
+            }
         }
 
-        self.build_evidence("silu_f32", "silu", ImplementationKind::ComposedMlx, vec![spec_in], vec![spec_out], eval_forced, readback, comp, err_opt)
+        self.build_evidence(
+            "silu_f32",
+            "silu",
+            ImplementationKind::ComposedMlx,
+            vec![spec_in],
+            vec![spec_out],
+            eval_forced,
+            readback,
+            comp,
+            err_opt,
+        )
     }
 
     fn test_matmul(&self) -> ConformanceEvidence {
         let a_data = vec![1.0_f32, 2.0, 3.0, 4.0, 5.0, 6.0]; // 2x3
-        let b_data = vec![1.0_f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0]; // 3x4
+        let b_data = vec![
+            1.0_f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
+        ]; // 3x4
 
         let a_arr = Array::from_slice(&a_data, &[2, 3]);
         let b_arr = Array::from_slice(&b_data, &[3, 4]);
         let spec_a = array_to_spec("a", &a_arr);
         let spec_b = array_to_spec("b", &b_arr);
 
+        if spec_a.shape.len() != 2 || spec_b.shape.len() != 2 || spec_a.shape[1] != spec_b.shape[0]
+        {
+            return self.build_evidence(
+                "matmul_f32",
+                "matmul",
+                ImplementationKind::NativeMlx,
+                vec![spec_a, spec_b],
+                vec![],
+                false,
+                false,
+                None,
+                Some(MlxError::UnsupportedShape),
+            );
+        }
+
         let out = match crate::ops::matmul(&a_arr, &b_arr) {
             Ok(val) => val,
-            Err(e) => return self.build_evidence("matmul_f32", "matmul", ImplementationKind::NativeMlx, vec![spec_a, spec_b], vec![], false, false, None, Some(MlxError::External(e.what)))
+            Err(e) => {
+                return self.build_evidence(
+                    "matmul_f32",
+                    "matmul",
+                    ImplementationKind::NativeMlx,
+                    vec![spec_a, spec_b],
+                    vec![],
+                    false,
+                    false,
+                    None,
+                    Some(MlxError::EvaluationFailed(e.what)),
+                )
+            }
         };
         let spec_out = array_to_spec("output", &out);
 
@@ -402,11 +612,23 @@ impl BackendConformanceRunner {
                 if !passed {
                     err_opt = Some(MlxError::NumericalMismatch);
                 }
-            },
-            Err(e) => { err_opt = Some(e); }
+            }
+            Err(e) => {
+                err_opt = Some(e);
+            }
         }
 
-        self.build_evidence("matmul_f32", "matmul", ImplementationKind::NativeMlx, vec![spec_a, spec_b], vec![spec_out], eval_forced, readback, comp, err_opt)
+        self.build_evidence(
+            "matmul_f32",
+            "matmul",
+            ImplementationKind::NativeMlx,
+            vec![spec_a, spec_b],
+            vec![spec_out],
+            eval_forced,
+            readback,
+            comp,
+            err_opt,
+        )
     }
 
     fn test_reshape(&self) -> ConformanceEvidence {
@@ -414,9 +636,38 @@ impl BackendConformanceRunner {
         let arr = Array::from_slice(&data, &[2, 3]);
         let spec_in = array_to_spec("input", &arr);
 
-        let out = match crate::ops::reshape(&arr, &[3, 2]) {
+        let new_shape: Vec<i32> = vec![3, 2];
+        let old_count = spec_in.shape.iter().product::<usize>();
+        let new_count = new_shape.iter().map(|&x| x as usize).product::<usize>();
+        if old_count != new_count {
+            return self.build_evidence(
+                "reshape_f32",
+                "reshape",
+                ImplementationKind::NativeMlx,
+                vec![spec_in.clone()],
+                vec![],
+                false,
+                false,
+                None,
+                Some(MlxError::UnsupportedShape),
+            );
+        }
+
+        let out = match crate::ops::reshape(&arr, &new_shape) {
             Ok(val) => val,
-            Err(e) => return self.build_evidence("reshape_f32", "reshape", ImplementationKind::NativeMlx, vec![spec_in.clone()], vec![], false, false, None, Some(MlxError::External(e.what)))
+            Err(e) => {
+                return self.build_evidence(
+                    "reshape_f32",
+                    "reshape",
+                    ImplementationKind::NativeMlx,
+                    vec![spec_in.clone()],
+                    vec![],
+                    false,
+                    false,
+                    None,
+                    Some(MlxError::EvaluationFailed(e.what)),
+                )
+            }
         };
         let spec_out = array_to_spec("output", &out);
 
@@ -435,11 +686,23 @@ impl BackendConformanceRunner {
                 if !passed {
                     err_opt = Some(MlxError::NumericalMismatch);
                 }
-            },
-            Err(e) => { err_opt = Some(e); }
+            }
+            Err(e) => {
+                err_opt = Some(e);
+            }
         }
 
-        self.build_evidence("reshape_f32", "reshape", ImplementationKind::NativeMlx, vec![spec_in], vec![spec_out], eval_forced, readback, comp, err_opt)
+        self.build_evidence(
+            "reshape_f32",
+            "reshape",
+            ImplementationKind::NativeMlx,
+            vec![spec_in],
+            vec![spec_out],
+            eval_forced,
+            readback,
+            comp,
+            err_opt,
+        )
     }
 
     fn test_transpose(&self) -> ConformanceEvidence {
@@ -449,7 +712,19 @@ impl BackendConformanceRunner {
 
         let out = match crate::ops::transpose(&arr) {
             Ok(val) => val,
-            Err(e) => return self.build_evidence("transpose_f32", "transpose", ImplementationKind::NativeMlx, vec![spec_in.clone()], vec![], false, false, None, Some(MlxError::External(e.what)))
+            Err(e) => {
+                return self.build_evidence(
+                    "transpose_f32",
+                    "transpose",
+                    ImplementationKind::NativeMlx,
+                    vec![spec_in.clone()],
+                    vec![],
+                    false,
+                    false,
+                    None,
+                    Some(MlxError::EvaluationFailed(e.what)),
+                )
+            }
         };
         let spec_out = array_to_spec("output", &out);
 
@@ -468,11 +743,23 @@ impl BackendConformanceRunner {
                 if !passed {
                     err_opt = Some(MlxError::NumericalMismatch);
                 }
-            },
-            Err(e) => { err_opt = Some(e); }
+            }
+            Err(e) => {
+                err_opt = Some(e);
+            }
         }
 
-        self.build_evidence("transpose_f32", "transpose", ImplementationKind::NativeMlx, vec![spec_in], vec![spec_out], eval_forced, readback, comp, err_opt)
+        self.build_evidence(
+            "transpose_f32",
+            "transpose",
+            ImplementationKind::NativeMlx,
+            vec![spec_in],
+            vec![spec_out],
+            eval_forced,
+            readback,
+            comp,
+            err_opt,
+        )
     }
 
     fn test_softmax(&self) -> ConformanceEvidence {
@@ -482,7 +769,19 @@ impl BackendConformanceRunner {
 
         let out = match crate::ops::softmax_axes(&arr, &[-1], None) {
             Ok(val) => val,
-            Err(e) => return self.build_evidence("softmax_f32", "softmax", ImplementationKind::NativeMlx, vec![spec_in.clone()], vec![], false, false, None, Some(MlxError::External(e.what)))
+            Err(e) => {
+                return self.build_evidence(
+                    "softmax_f32",
+                    "softmax",
+                    ImplementationKind::NativeMlx,
+                    vec![spec_in.clone()],
+                    vec![],
+                    false,
+                    false,
+                    None,
+                    Some(MlxError::EvaluationFailed(e.what)),
+                )
+            }
         };
         let spec_out = array_to_spec("output", &out);
 
@@ -501,10 +800,22 @@ impl BackendConformanceRunner {
                 if !passed {
                     err_opt = Some(MlxError::NumericalMismatch);
                 }
-            },
-            Err(e) => { err_opt = Some(e); }
+            }
+            Err(e) => {
+                err_opt = Some(e);
+            }
         }
 
-        self.build_evidence("softmax_f32", "softmax", ImplementationKind::NativeMlx, vec![spec_in], vec![spec_out], eval_forced, readback, comp, err_opt)
+        self.build_evidence(
+            "softmax_f32",
+            "softmax",
+            ImplementationKind::NativeMlx,
+            vec![spec_in],
+            vec![spec_out],
+            eval_forced,
+            readback,
+            comp,
+            err_opt,
+        )
     }
 }
