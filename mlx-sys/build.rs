@@ -123,6 +123,10 @@ pub unsafe extern "C" fn mlx_array_new_data_managed_payload(
     _dtor: Option<unsafe extern "C" fn(*mut std::ffi::c_void)>
 ) -> mlx_array { std::ptr::null_mut() }
 #[no_mangle]
+pub unsafe extern "C" fn mlx_fast_scaled_dot_product_attention(
+    _q: mlx_array, _k: mlx_array, _v: mlx_array, _scale: f32, _mask: mlx_array, _stream: mlx_stream
+) -> mlx_array { std::ptr::null_mut() }
+#[no_mangle]
 pub unsafe extern "C" fn mlx_array_new() -> mlx_array { std::ptr::null_mut() }
 "#;
         std::fs::write(out_path.join("bindings.rs"), dummy_bindings).expect("dummy bindings");
