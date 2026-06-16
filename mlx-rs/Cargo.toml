@@ -48,7 +48,7 @@ float_eq.workspace = true
 tempfile.workspace = true
 
 [features]
-default = ["accelerate", "metal"]
+default = []
 
 accelerate = ["mlx-sys/accelerate"]
 metal = ["mlx-sys/metal"]
@@ -57,3 +57,6 @@ metal = ["mlx-sys/metal"]
 safetensors = ["dep:safetensors", "dep:bytemuck"]
 # Enables typed evidence models for the backend foundation
 evidence = ["dep:serde", "dep:serde_json"]
+
+# Disables MLX C++ build and provides dummy types
+stub = ["mlx-sys/stub"]

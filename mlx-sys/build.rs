@@ -60,25 +60,93 @@ fn build_and_link_mlx_c() {
 }
 
 fn main() {
-    build_and_link_mlx_c();
+    #[cfg(not(feature = "stub"))]
+    {
+        build_and_link_mlx_c();
 
-    // generate bindings
-    let bindings = bindgen::Builder::default()
-        .rust_target("1.73.0".parse().expect("rust-version"))
-        .header("src/mlx-c/mlx/c/mlx.h")
-        .header("src/mlx-c/mlx/c/linalg.h")
-        .header("src/mlx-c/mlx/c/error.h")
-        .header("src/mlx-c/mlx/c/transforms_impl.h")
-        .clang_arg("-Isrc/mlx-c")
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
-        .generate()
-        .expect("Unable to generate bindings");
+        // generate bindings
+        let bindings = bindgen::Builder::default()
+            .rust_target("1.73.0".parse().expect("rust-version"))
+            .header("src/mlx-c/mlx/c/mlx.h")
+            .header("src/mlx-c/mlx/c/linalg.h")
+            .header("src/mlx-c/mlx/c/error.h")
+            .header("src/mlx-c/mlx/c/transforms_impl.h")
+            .clang_arg("-Isrc/mlx-c")
+            .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
+            .generate()
+            .expect("Unable to generate bindings");
 
-    // Write the bindings to the $OUT_DIR/bindings.rs file.
-    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
-    bindings
-        .write_to_file(out_path.join("bindings.rs"))
-        .expect("Couldn't write bindings!");
+        // Write the bindings to the $OUT_DIR/bindings.rs file.
+        let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+        bindings
+            .write_to_file(out_path.join("bindings.rs"))
+            .expect("Couldn't write bindings!");
+    }
+
+    #[cfg(feature = "stub")]
+    {
+        // Write a dummy bindings file so the crate compiles
+        let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
+        let dummy_bindings = r#"
+pub type mlx_array = *mut std::ffi::c_void;
+pub type mlx_stream = *mut std::ffi::c_void;
+
+#[repr(C)]
+pub struct mlx_optional_int_ {
+    pub value: i32,
+    pub has_value: bool,
+}
+
+#[repr(C)]
+pub struct mlx_optional_dtype_ {
+    pub value: i32,
+    pub has_value: bool,
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn mlx_get_active_memory(_res: *mut usize) {}
+#[no_mangle]
+pub unsafe extern "C" fn mlx_get_cache_memory(_res: *mut usize) {}
+#[no_mangle]
+pub unsafe extern "C" fn mlx_get_peak_memory(_res: *mut usize) {}
+#[no_mangle]
+pub unsafe extern "C" fn mlx_clear_cache() {}
+#[no_mangle]
+pub unsafe extern "C" fn mlx_set_cache_limit(_prev: *mut usize, _limit: usize) {}
+#[no_mangle]
+pub unsafe extern "C" fn mlx_get_memory_limit(_res: *mut usize) {}
+#[no_mangle]
+pub unsafe extern "C" fn mlx_set_memory_limit(_prev: *mut usize, _limit: usize) {}
+#[no_mangle]
+pub unsafe extern "C" fn mlx_metal_is_available(_res: *mut bool) -> i32 { 0 }
+#[no_mangle]
+pub unsafe extern "C" fn mlx_array_new_data_managed_payload(
+    _data: *const std::ffi::c_void, 
+    _shape: *const i32, 
+    _dim: i32, 
+    _dtype: u32, 
+    _payload: *mut std::ffi::c_void, 
+    _dtor: Option<unsafe extern "C" fn(*mut std::ffi::c_void)>
+) -> mlx_array { std::ptr::null_mut() }
+#[no_mangle]
+pub unsafe extern "C" fn mlx_fast_scaled_dot_product_attention(
+    _res: *mut mlx_array,
+    _q: mlx_array,
+    _k: mlx_array,
+    _v: mlx_array,
+    _scale: f32,
+    _mask_mode: *const std::ffi::c_char,
+    _mask_arr: mlx_array,
+    _sinks: mlx_array,
+    _stream: mlx_stream,
+) -> i32 {
+    0
+}
+#[no_mangle]
+pub unsafe extern "C" fn mlx_array_new() -> mlx_array { std::ptr::null_mut() }
+"#;
+        std::fs::write(out_path.join("bindings.rs"), dummy_bindings).expect("dummy bindings");
+    }
 
     // Emit build-generated version constants
     let mlx_c_version = std::fs::read_to_string("src/mlx-c/VERSION")

@@ -19,10 +19,11 @@ targets = [
 ]
 
 [features]
-default = ["accelerate", "metal"]
+default = []
 
 accelerate = []
 metal = []
+stub = []
 
 [dependencies]
 
