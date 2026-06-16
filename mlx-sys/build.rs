@@ -81,10 +81,44 @@ fn main() {
     {
         // Write a dummy bindings file so the crate compiles
         let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
-        std::fs::write(
-            out_path.join("bindings.rs"), 
-            "pub type mlx_array = *mut std::ffi::c_void;\npub type mlx_stream = *mut std::ffi::c_void;"
-        ).expect("dummy bindings");
+        let dummy_bindings = r#"
+pub type mlx_array = *mut std::ffi::c_void;
+pub type mlx_stream = *mut std::ffi::c_void;
+
+#[repr(C)]
+pub struct mlx_optional_int_ {
+    pub value: i32,
+    pub has_value: bool,
+}
+
+#[repr(C)]
+pub struct mlx_optional_dtype_ {
+    pub value: i32,
+    pub has_value: bool,
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn mlx_get_active_memory(_res: *mut usize) {}
+#[no_mangle]
+pub unsafe extern "C" fn mlx_get_cache_memory(_res: *mut usize) {}
+#[no_mangle]
+pub unsafe extern "C" fn mlx_get_peak_memory(_res: *mut usize) {}
+#[no_mangle]
+pub unsafe extern "C" fn mlx_clear_cache() {}
+#[no_mangle]
+pub unsafe extern "C" fn mlx_set_cache_limit(_prev: *mut usize, _limit: usize) {}
+#[no_mangle]
+pub unsafe extern "C" fn mlx_get_memory_limit(_res: *mut usize) {}
+#[no_mangle]
+pub unsafe extern "C" fn mlx_set_memory_limit(_prev: *mut usize, _limit: usize) {}
+#[no_mangle]
+pub unsafe extern "C" fn mlx_metal_is_available(_res: *mut bool) {}
+#[no_mangle]
+pub unsafe extern "C" fn mlx_array_new_data_managed_payload(_data: *const std::ffi::c_void, _shape: *const i32, _dim: i32, _dtype: i32, _payload: *mut std::ffi::c_void, _dtor: *mut std::ffi::c_void) -> mlx_array { std::ptr::null_mut() }
+#[no_mangle]
+pub unsafe extern "C" fn mlx_array_new() -> mlx_array { std::ptr::null_mut() }
+"#;
+        std::fs::write(out_path.join("bindings.rs"), dummy_bindings).expect("dummy bindings");
     }
 
     // Emit build-generated version constants
