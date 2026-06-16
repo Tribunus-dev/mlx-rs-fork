@@ -39,6 +39,8 @@ itertools.workspace = true
 # optional dependencies
 safetensors = { workspace = true, optional = true }
 bytemuck = { workspace = true, optional = true, features = ["extern_crate_std"] }
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
 
 [dev-dependencies]
 pretty_assertions.workspace = true
@@ -53,3 +55,5 @@ metal = ["mlx-sys/metal"]
 
 # Enables conversion between `Array` and `safetensors::TensorView`
 safetensors = ["dep:safetensors", "dep:bytemuck"]
+# Enables typed evidence models for the backend foundation
+evidence = ["dep:serde", "dep:serde_json"]

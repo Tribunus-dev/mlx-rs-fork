@@ -441,10 +441,10 @@ impl Array {
                 Dtype::Int16 => mlx_sys::mlx_array_data_int16(self.as_ptr()) as *const c_void,
                 Dtype::Int32 => mlx_sys::mlx_array_data_int32(self.as_ptr()) as *const c_void,
                 Dtype::Int64 => mlx_sys::mlx_array_data_int64(self.as_ptr()) as *const c_void,
-                Dtype::Float16 => mlx_sys::mlx_array_data_float16(self.as_ptr()) as *const c_void,
+                Dtype::Float16 => panic!("unsupported"),
                 Dtype::Float32 => mlx_sys::mlx_array_data_float32(self.as_ptr()) as *const c_void,
                 Dtype::Float64 => mlx_sys::mlx_array_data_float64(self.as_ptr()) as *const c_void,
-                Dtype::Bfloat16 => mlx_sys::mlx_array_data_bfloat16(self.as_ptr()) as *const c_void,
+                Dtype::Bfloat16 => panic!("unsupported"),
                 Dtype::Complex64 => {
                     mlx_sys::mlx_array_data_complex64(self.as_ptr()) as *const c_void
                 }

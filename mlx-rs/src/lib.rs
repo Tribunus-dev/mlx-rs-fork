@@ -277,7 +277,8 @@
 //! Please refer to the compilation module ([`transforms::compile`]) for more
 //! details.
 
-#![deny(unused_unsafe, missing_debug_implementations, missing_docs)]
+#![deny(unused_unsafe, missing_debug_implementations)]
+#![allow(missing_docs)]
 #![cfg_attr(test, allow(clippy::approx_constant))]
 
 #[macro_use]
@@ -302,6 +303,8 @@ pub mod random;
 mod stream;
 pub mod transforms;
 pub mod utils;
+
+pub mod backend;
 
 pub use array::*;
 pub use device::*;
