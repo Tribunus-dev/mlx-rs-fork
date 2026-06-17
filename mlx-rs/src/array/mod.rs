@@ -1078,3 +1078,41 @@ mod tests {
         assert_eq!(array.as_slice::<f32>(), &[1.0]);
     }
 }
+
+/// Ergonomic infallible wrappers for common operations.
+/// Shape validation is the caller's responsibility.
+pub trait ArrayOps {
+    /// Reshape the array
+    fn reshape(&self, shape: &[i32]) -> Array;
+    /// Transpose the array
+    fn transpose(&self, axes: &[i32]) -> Array;
+    /// Slice the array
+    fn slice(&self, starts: &[i32], stops: &[i32], strides: &[i32]) -> Array;
+    /// Concatenate arrays
+    fn concatenate(arrays: &[&Array], axis: i32) -> Array;
+    /// Pad the array
+    fn pad(&self, pad_width: &[(i32, i32)], pad_value: Array) -> Array;
+}
+
+impl ArrayOps for Array {
+    fn reshape(&self, shape: &[i32]) -> Array {
+        crate::ops::reshape(self, shape).unwrap()
+    }
+
+    fn transpose(&self, axes: &[i32]) -> Array {
+        crate::ops::transpose_axes(self, axes).unwrap()
+    }
+
+    fn slice(&self, starts: &[i32], stops: &[i32], strides: &[i32]) -> Array {
+        crate::ops::indexing::slice(self, starts, stops, strides).unwrap()
+    }
+
+    fn concatenate(arrays: &[&Array], axis: i32) -> Array {
+        crate::ops::concatenate_axis(arrays, axis).unwrap()
+    }
+
+    fn pad(&self, pad_width: &[(i32, i32)], pad_value: Array) -> Array {
+        let pad_width = crate::ops::PadWidth::Widths(pad_width);
+        crate::ops::pad(self, pad_width, Some(pad_value), None).unwrap()
+    }
+}

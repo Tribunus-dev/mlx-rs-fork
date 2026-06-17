@@ -739,3 +739,16 @@ fn expand_ellipsis_operations<'a>(
 
     Cow::Owned(expanded)
 }
+
+/// See [`Array::slice`]
+#[generate_macro]
+#[default_device]
+pub fn slice_device(
+    a: impl AsRef<Array>,
+    start: &[i32],
+    stop: &[i32],
+    strides: &[i32],
+    #[optional] stream: impl AsRef<Stream>,
+) -> Result<Array> {
+    a.as_ref().slice_device(start, stop, strides, stream)
+}

@@ -1,3 +1,4 @@
+use mlx_internal_macros::default_device;
 use std::{
     borrow::Cow,
     ops::{Bound, Deref, RangeBounds},
@@ -700,10 +701,9 @@ where
 
 // Implement private bindings
 impl Array {
-    // This is exposed in the c api but not found in the swift or python api
-    //
-    // Thie is not the same as rust slice. Slice in python is more like `StepBy` iterator in rust
-    pub(crate) fn slice_device(
+    /// See [`slice`].
+    #[default_device]
+    pub fn slice_device(
         &self,
         start: &[i32],
         stop: &[i32],

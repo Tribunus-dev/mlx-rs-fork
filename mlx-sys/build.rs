@@ -38,7 +38,14 @@ fn build_and_link_mlx_c() {
     println!("cargo:rustc-link-lib=static=mlx");
     println!("cargo:rustc-link-lib=static=mlxc");
 
-    println!("cargo:rustc-link-lib=c++");
+    if std::env::var("CARGO_CFG_TARGET_OS").unwrap() == "linux" {
+        println!("cargo:rustc-link-lib=stdc++");
+        println!("cargo:rustc-link-lib=openblas");
+        println!("cargo:rustc-link-lib=lapack");
+        println!("cargo:rustc-link-lib=lapacke");
+    } else {
+        println!("cargo:rustc-link-lib=c++");
+    }
     println!("cargo:rustc-link-lib=dylib=objc");
     if std::env::var("CARGO_CFG_TARGET_OS").unwrap() == "macos" || std::env::var("CARGO_CFG_TARGET_OS").unwrap() == "ios" {
         println!("cargo:rustc-link-lib=framework=Foundation");
@@ -71,6 +78,7 @@ fn main() {
             .header("src/mlx-c/mlx/c/linalg.h")
             .header("src/mlx-c/mlx/c/error.h")
             .header("src/mlx-c/mlx/c/transforms_impl.h")
+            .header("src/mlx-c/mlx/c/ffi.h")
             .clang_arg("-Isrc/mlx-c")
             .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
             .generate()
@@ -119,6 +127,16 @@ pub unsafe extern "C" fn mlx_get_memory_limit(_res: *mut usize) {}
 pub unsafe extern "C" fn mlx_set_memory_limit(_prev: *mut usize, _limit: usize) {}
 #[no_mangle]
 pub unsafe extern "C" fn mlx_metal_is_available(_res: *mut bool) -> i32 { 0 }
+#[no_mangle]
+pub unsafe extern "C" fn mlx_reshape_ffi(_x: mlx_array, _shape_ar: *const i32, _ndim: i32) -> mlx_array { std::ptr::null_mut() }
+#[no_mangle]
+pub unsafe extern "C" fn mlx_transpose_ffi(_x: mlx_array, _axes: *const i32, _n_axes: i32) -> mlx_array { std::ptr::null_mut() }
+#[no_mangle]
+pub unsafe extern "C" fn mlx_slice_ffi(_x: mlx_array, _start: *const i32, _stop: *const i32, _stride: *const i32, _n_axes: i32) -> mlx_array { std::ptr::null_mut() }
+#[no_mangle]
+pub unsafe extern "C" fn mlx_concatenate_ffi(_arrays: *const mlx_array, _n_arrays: i32, _axis: i32) -> mlx_array { std::ptr::null_mut() }
+#[no_mangle]
+pub unsafe extern "C" fn mlx_pad_ffi(_x: mlx_array, _pad_widths: *const i32, _n_pads: i32) -> mlx_array { std::ptr::null_mut() }
 #[no_mangle]
 pub unsafe extern "C" fn mlx_array_new_data_managed_payload(
     _data: *const std::ffi::c_void, 

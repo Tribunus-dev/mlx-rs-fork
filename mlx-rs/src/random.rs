@@ -25,7 +25,7 @@ pub struct RandomState {
 
 impl RandomState {
     fn new() -> Result<Self> {
-        let now = unsafe { mach_time::mach_approximate_time() };
+        let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos() as u64;
         Ok(Self { state: key(now)? })
     }
 
