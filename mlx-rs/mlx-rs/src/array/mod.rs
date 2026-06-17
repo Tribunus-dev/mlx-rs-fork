@@ -302,24 +302,6 @@ impl Array {
         <() as Guarded>::try_from_op(|_| unsafe { mlx_sys::mlx_array_eval(self.as_ptr()) })
     }
 
-    /// Evaluate the array and materialize the result into a pre-allocated
-    /// output buffer (e.g. an IOSurface arena).
-    ///
-    /// Before evaluation, sets the allocator's output buffer hint so that
-    /// the Metal backend wraps `hint` as an `MTLBuffer` instead of
-    /// allocating fresh Metal memory.  Only the allocation whose size
-    /// exactly matches the hint is redirected; intermediate tensors use
-    /// the normal Metal heap.
-    pub fn evaluate_into(&self, hint: &impl crate::memory::OutputBufferHint) -> crate::error::Result<()> {
-        unsafe {
-            mlx_sys::mlx_set_output_buffer_hint(
-                hint.buffer_ptr() as *mut std::ffi::c_void,
-                hint.buffer_size(),
-            );
-        }
-        self.eval()
-    }
-
     /// Access the value of a scalar array.
     /// If `T` does not match the array's `dtype` this will convert the type first.
     ///
@@ -1094,43 +1076,5 @@ mod tests {
         assert_eq!(array.item::<u8>(), 1);
 
         assert_eq!(array.as_slice::<f32>(), &[1.0]);
-    }
-}
-
-/// Ergonomic infallible wrappers for common operations.
-/// Shape validation is the caller's responsibility.
-pub trait ArrayOps {
-    /// Reshape the array
-    fn reshape(&self, shape: &[i32]) -> Array;
-    /// Transpose the array
-    fn transpose(&self, axes: &[i32]) -> Array;
-    /// Slice the array
-    fn slice(&self, starts: &[i32], stops: &[i32], strides: &[i32]) -> Array;
-    /// Concatenate arrays
-    fn concatenate(arrays: &[&Array], axis: i32) -> Array;
-    /// Pad the array
-    fn pad(&self, pad_width: &[(i32, i32)], pad_value: Array) -> Array;
-}
-
-impl ArrayOps for Array {
-    fn reshape(&self, shape: &[i32]) -> Array {
-        crate::ops::reshape(self, shape).unwrap()
-    }
-
-    fn transpose(&self, axes: &[i32]) -> Array {
-        crate::ops::transpose_axes(self, axes).unwrap()
-    }
-
-    fn slice(&self, starts: &[i32], stops: &[i32], strides: &[i32]) -> Array {
-        crate::ops::indexing::slice(self, starts, stops, strides).unwrap()
-    }
-
-    fn concatenate(arrays: &[&Array], axis: i32) -> Array {
-        crate::ops::concatenate_axis(arrays, axis).unwrap()
-    }
-
-    fn pad(&self, pad_width: &[(i32, i32)], pad_value: Array) -> Array {
-        let pad_width = crate::ops::PadWidth::Widths(pad_width);
-        crate::ops::pad(self, pad_width, Some(pad_value), None).unwrap()
     }
 }
