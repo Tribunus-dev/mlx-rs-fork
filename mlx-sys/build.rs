@@ -78,7 +78,6 @@ fn main() {
             .header("src/mlx-c/mlx/c/linalg.h")
             .header("src/mlx-c/mlx/c/error.h")
             .header("src/mlx-c/mlx/c/transforms_impl.h")
-            .header("src/mlx-c/mlx/c/ffi.h")
             .clang_arg("-Isrc/mlx-c")
             .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
             .generate()
