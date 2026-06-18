@@ -34,6 +34,21 @@ fn build_and_link_mlx_c() {
         panic!("cmake configure failed");
     }
 
+    // Force MLX_BUILD_METAL=OFF in CMakeCache.txt — the outer wrapper
+    // CMakeLists.txt doesn't forward -D flags to the fetched mlx-src project.
+    let cache_path = build_dir.join("CMakeCache.txt");
+    if cache_path.exists() {
+        let content = std::fs::read_to_string(&cache_path).unwrap_or_default();
+        let patched = content.replace(
+            "MLX_BUILD_METAL:BOOL=ON",
+            "MLX_BUILD_METAL:BOOL=OFF",
+        );
+        if content != patched {
+            std::fs::write(&cache_path, &patched).unwrap();
+            eprintln!("Forced MLX_BUILD_METAL=OFF in CMakeCache.txt");
+        }
+    }
+
     // Patch bf16_math.h: guard half-typed instantiations on macOS 26+
     // where bfloat16_t falls back to `half` and Metal already provides
     // native half math functions.
