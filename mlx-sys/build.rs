@@ -66,7 +66,7 @@ fn build_and_link_mlx_c() {
         let patches_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("patches");
         let bf16_patch = patches_dir.join("bf16_math_patched.h");
         if bf16_patch.exists() {
-            let bf16_math_path = dst.join("_deps/mlx-src/mlx/backend/metal/kernels/bf16_math.h");
+            let bf16_math_path = dst.join("build/_deps/mlx-src/mlx/backend/metal/kernels/bf16_math.h");
             if bf16_math_path.exists() {
                 let content = std::fs::read_to_string(&bf16_math_path).unwrap_or_default();
                 let guarded = content.replace(
