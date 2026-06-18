@@ -310,6 +310,11 @@ impl Array {
     /// allocating fresh Metal memory.  Only the allocation whose size
     /// exactly matches the hint is redirected; intermediate tensors use
     /// the normal Metal heap.
+    ///
+    /// This method requires the C-side `mlx_set_output_buffer_hint` which
+    /// has not been compiled into the current mlx-c build.  Gated behind an
+    /// always-off cfg until the C API is stabilized.
+    #[cfg(any())]
     pub fn evaluate_into(&self, hint: &impl crate::memory::OutputBufferHint) -> crate::error::Result<()> {
         unsafe {
             mlx_sys::mlx_set_output_buffer_hint(
