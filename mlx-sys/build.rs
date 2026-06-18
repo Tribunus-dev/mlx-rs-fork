@@ -1,6 +1,12 @@
 use std::{env, path::PathBuf, process::Command};
 
 fn build_and_link_mlx_c() {
+    // macOS: suppress libsystem_malloc messages from cmake subprocesses
+    unsafe {
+        std::env::set_var("MallocStackLogging", "0");
+        std::env::set_var("MallocStackLoggingNoCompact", "0");
+    }
+
     // build the mlx-c project
     // Step 1: cmake configure (fetches sources, creates build tree)
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -19,8 +25,8 @@ fn build_and_link_mlx_c() {
     ];
 
     // Use Xcode's clang to ensure compatibility with the macOS SDK
-    config.define("CMAKE_C_COMPILER", "/usr/bin/cc");
-    config.define("CMAKE_CXX_COMPILER", "/usr/bin/c++");
+    cmake_args.push("-DCMAKE_C_COMPILER=/usr/bin/cc".to_string());
+    cmake_args.push("-DCMAKE_CXX_COMPILER=/usr/bin/c++".to_string());
 
     #[cfg(debug_assertions)]
     { cmake_args.push("-DCMAKE_BUILD_TYPE=Debug".to_string()); }
@@ -38,7 +44,16 @@ fn build_and_link_mlx_c() {
     // Re-enable Metal backend so GPU inference is active.
     #[cfg(feature = "metal")]
     {
-        cmake_args.push("-DMLX_BUILD_METAL=ON".to_string());
+        // Metal backend enabled in C++ code; AOT .metallib compiled separately
+        // via embed_metallib(). Set OFF to skip .air/.metallib build which
+        // fails on macOS 26.5+ (duplicate half template instantiations).
+        cmake_args.push("-DMLX_BUILD_METAL=OFF".to_string());
+        // Use local mlx fork clone to avoid HTTPS auth failure on remote fetch
+        let mlx_local = "/Users/user/Developer/GitHub/mlx-tribunus";
+        if std::path::Path::new(mlx_local).exists() {
+            cmake_args.push(format!("-DFETCHCONTENT_SOURCE_DIR_MLX={}", mlx_local));
+            eprintln!("Using local mlx fork at {}", mlx_local);
+        }
         eprintln!("Metal backend enabled");
     }
     #[cfg(not(feature = "metal"))]
@@ -210,6 +225,12 @@ fn build_and_link_mlx_c() {
 }
 
 fn main() {
+    // macOS: suppress libsystem_malloc messages from cmake subprocesses
+    unsafe {
+        std::env::set_var("MallocStackLogging", "0");
+        std::env::set_var("MallocStackLoggingNoCompact", "0");
+    }
+
     #[cfg(not(feature = "stub"))]
     {
         build_and_link_mlx_c();
@@ -222,6 +243,7 @@ fn main() {
             .header("src/mlx-c/mlx/c/error.h")
             .header("src/mlx-c/mlx/c/transforms_impl.h")
             .clang_arg("-Isrc/mlx-c")
+            .wrap_unsafe_ops(true)
             .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
             .generate()
             .expect("Unable to generate bindings");
@@ -317,4 +339,27 @@ pub unsafe extern "C" fn mlx_array_new() -> mlx_array { std::ptr::null_mut() }
     println!("cargo:rustc-env=MLX_CORE_TARGET=v0.31.2");
     println!("cargo:rustc-env=MLX_SYS_VERSION=0.6.0-tribunus.1");
     println!("cargo:rustc-env=MLX_RS_BASE_COMMIT=93ed8db");
+}
+
+/// Find the Xcode clang runtime library path for the ___isPlatformVersionAtLeast symbol.
+/// Required on macOS 26+ where the bundled LLVM runtime may be outdated.
+fn find_clang_rt_path() -> Option<String> {
+    let output = std::process::Command::new("xcrun")
+        .args(["--show-sdk-platform-path"])
+        .output().ok()?;
+    if !output.status.success() { return None; }
+    let output = std::process::Command::new("xcode-select")
+        .args(["--print-path"])
+        .output().ok()?;
+    if !output.status.success() { return None; }
+    let developer_dir = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let toolchain_base = format!("{}/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang", developer_dir);
+    let clang_dir = std::fs::read_dir(&toolchain_base).ok()?;
+    for entry in clang_dir.flatten() {
+        let darwin_path = entry.path().join("lib/darwin");
+        if darwin_path.exists() {
+            return Some(darwin_path.to_str()?.to_string());
+        }
+    }
+    None
 }

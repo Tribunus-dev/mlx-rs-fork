@@ -16,15 +16,26 @@ use crate::{
 ///
 /// > `quantized` currently only supports 2D inputs with dimensions which are multiples of 32
 ///
+/// Default group size for quantization (64 elements per group).
+const DEFAULT_GROUP_SIZE: i32 = 64;
+/// Default number of bits per quantized element (4 bits).
+const DEFAULT_BITS: i32 = 4;
+
+/// Helper: unwrap an optional integer to a default value.
+fn optional_int(v: impl Into<Option<i32>>, default: i32) -> i32 {
+    v.into().unwrap_or(default)
+}
+
+/// Quantize the matrix `w` using `bits` bits per element.
+///
+/// Note, every `group_size` elements in a row of `w` are quantized together. Hence, number of
+/// columns of `w` should be divisible by `group_size`. In particular, the rows of `w` are divided
+/// into groups of size `group_size` which are quantized together.
+///
+/// > `quantized` currently only supports 2D inputs with dimensions which are multiples of 32
+///
 /// For details, please see [this
 /// documentation](https://ml-explore.github.io/mlx/build/html/python/_autosummary/mlx.core.quantize.html)
-///
-/// # Params
-///
-/// - `w`: The input matrix
-/// - `group_size`: The size of the group in `w` that shares a scale and bias. (default: `64`)
-/// - `bits`: The number of bits occupied by each element of w in the returned quantized matrix.
-///   (default: 4)
 #[generate_macro]
 #[default_device]
 pub fn quantize_device(
@@ -78,7 +89,7 @@ pub fn quantized_matmul_device<'a>(
     x: impl AsRef<Array>,
     w: impl AsRef<Array>,
     scales: impl AsRef<Array>,
-    #[optional] biases: impl Into<Option<&'a Array>>,
+        #[optional] biases: impl Into<Option<&'a Array>>,
     #[optional] transpose: impl Into<Option<bool>>,
     #[optional] group_size: impl Into<Option<i32>>,
     #[optional] bits: impl Into<Option<i32>>,
@@ -124,7 +135,7 @@ pub fn quantized_matmul_device<'a>(
 pub fn dequantize_device<'a>(
     w: impl AsRef<Array>,
     scales: impl AsRef<Array>,
-    #[optional] biases: impl Into<Option<&'a Array>>,
+        #[optional] biases: impl Into<Option<&'a Array>>,
     #[optional] group_size: impl Into<Option<i32>>,
     #[optional] bits: impl Into<Option<i32>>,
     #[optional] stream: impl AsRef<Stream>,
@@ -137,7 +148,10 @@ pub fn dequantize_device<'a>(
             res,
             w.as_ref().as_ptr(),
             scales.as_ref().as_ptr(),
-            biases.as_ref().as_ptr(),
+            biases
+                .into()
+                .map(|a| a.as_ptr())
+                .unwrap_or(mlx_sys::mlx_array_new()),
             mlx_sys::mlx_optional_int_ {
                 value: group_size,
                 has_value: true,

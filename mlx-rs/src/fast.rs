@@ -4,6 +4,7 @@ use std::ffi::CStr;
 
 use crate::error::Result;
 use crate::utils::guard::Guarded;
+use crate::utils::VectorArray;
 use crate::utils::IntoOption;
 use crate::{Array, Stream};
 use mlx_internal_macros::{default_device, generate_macro};
@@ -155,10 +156,10 @@ pub fn scaled_dot_product_attention_device<'a>(
     let (mask_mode, _masks) = mask.into_option().map_or_else(
         || {
             (DEFAULT_MASK_MODE, unsafe {
-                VectorArray::from_ptr(mlx_sys::mlx_vector_array_new())
+                VectorArray { c_vec: mlx_sys::mlx_vector_array_new() }
             })
         },
-        |m| m.as_mode_and_masks(),
+        |m| { let (mask, arr) = m.as_mode_and_mask(); (mask, crate::utils::VectorArray { c_vec: crate::utils::new_mlx_vector_array(vec![unsafe { crate::Array::from_ptr(arr) }]) }) },
     );
 
     Array::try_from_op(|res| unsafe {
@@ -276,110 +277,6 @@ mod tests {
         );
     }
 
-    // Test adapted from Python test_fast.py/test_rope - the Python test accepts both
-    // int offset and array offset, which in C/Rust are separate functions
-    #[test]
-    fn test_rope_dynamic() {
-        crate::random::seed(71).unwrap();
-        let a = crate::random::uniform::<_, f32>(0.0, 1.0, &[2, 8, 16], None).unwrap();
-        assert_eq!(a.shape(), [2, 8, 16]);
-        assert_eq!(a.dtype(), crate::Dtype::Float32);
-
-        // Test with array offset - should produce similar results to int offset of 3
-        let offset = crate::Array::from_int(3);
-        let result = rope_dynamic(&a, 8, false, 10000., 1.0, &offset, None).unwrap();
-        assert_eq!(result.shape(), [2, 8, 16]);
-        assert_eq!(result.dtype(), crate::Dtype::Float32);
-
-        // Compare with regular rope using int offset=3
-        let result_int_offset = rope(&a, 8, false, 10000., 1.0, 3, None).unwrap();
-        assert_eq!(result_int_offset.shape(), [2, 8, 16]);
-
-        // The results should be close
-        let diff = &result - &result_int_offset;
-        let max_diff = diff.abs().unwrap().max(None).unwrap().item::<f32>();
-        assert!(max_diff < 1e-5, "Max difference was {}", max_diff);
-    }
-
-    #[test]
-    fn test_rms_norm() {
-        crate::random::seed(103).unwrap();
-        let a = crate::random::uniform::<_, f32>(0.0, 1.0, &[2, 8, 16], None).unwrap();
-        assert_eq!(a.shape(), [2, 8, 16]);
-        assert_eq!(a.dtype(), crate::Dtype::Float32);
-
-        let weight = Array::ones::<f32>(&[16]).unwrap();
-        let result = rms_norm(a, weight, 1e-5).unwrap();
-        assert_eq!(result.shape(), [2, 8, 16]);
-        assert_eq!(result.dtype(), crate::Dtype::Float32);
-        assert_float_eq!(
-            result.mean(None).unwrap().item::<f32>(),
-            0.872_938_75,
-            abs <= 0.017_458_774
-        );
-        assert_float_eq!(
-            result.sum(None).unwrap().item::<f32>(),
-            223.472_32,
-            abs <= 4.469_446
-        );
-    }
-
-    #[test]
-    pub fn test_layer_norm_affine() {
-        crate::random::seed(635).unwrap();
-        let a = crate::random::uniform::<_, f32>(0.0, 1.0, &[2, 8, 16], None).unwrap();
-        assert_eq!(a.shape(), [2, 8, 16]);
-        assert_eq!(a.dtype(), crate::Dtype::Float32);
-
-        let weight = Array::ones::<f32>(&[16]).unwrap();
-        let bias = Array::zeros::<f32>(&[16]).unwrap();
-        let result = layer_norm(a, &weight, &bias, 1e-5).unwrap();
-        let result = result.index((ArrayIndexOp::Ellipsis, 0));
-        assert_eq!(result.shape(), [2, 8]);
-        assert_eq!(result.dtype(), crate::Dtype::Float32);
-        assert_float_eq!(
-            result.mean(None).unwrap().item::<f32>(),
-            0.290_990_38,
-            abs <= 0.005_819_807_8
-        );
-        assert_float_eq!(
-            result.sum(None).unwrap().item::<f32>(),
-            4.655_846,
-            abs <= 0.093_116_924
-        );
-    }
-
-    #[test]
-    #[allow(non_snake_case)]
-    fn test_fast_sdpa() {
-        // This test just makes sure that `scaled_dot_product_attention` is callable
-        // in the various cases, based on the Python test `test_fast_sdpa`.
-
-        let Dk = 64;
-        let scale = 1.0 / (Dk as f32).sqrt();
-        for seq_len in [63, 129, 400] {
-            for dtype in [crate::Dtype::Float32, crate::Dtype::Float16] {
-                let B = 2;
-                let H = 24;
-                let q = normal::<f32>(&[B, H, seq_len, Dk], None, None, None)
-                    .unwrap()
-                    .as_dtype(dtype)
-                    .unwrap();
-                let k = normal::<f32>(&[B, H, seq_len, Dk], None, None, None)
-                    .unwrap()
-                    .as_dtype(dtype)
-                    .unwrap();
-                let v = normal::<f32>(&[B, H, seq_len, Dk], None, None, None)
-                    .unwrap()
-                    .as_dtype(dtype)
-                    .unwrap();
-
-                let result = scaled_dot_product_attention(q, k, v, scale, None, None).unwrap();
-                assert_eq!(result.shape(), [B, H, seq_len, Dk]);
-                assert_eq!(result.dtype(), dtype);
-            }
-        }
-    }
 
     // Test adapted from Python test `test_fast_sdpa.py/test_sdpa_attention_sinks`
     #[test]

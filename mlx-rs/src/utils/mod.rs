@@ -44,10 +44,18 @@ pub(crate) fn axes_or_default_to_all<'a>(axes: impl IntoOption<&'a [i32]>, ndim:
 }
 
 pub(crate) struct VectorArray {
-    c_vec: mlx_sys::mlx_vector_array,
+    pub(crate) c_vec: mlx_sys::mlx_vector_array,
 }
 
 impl VectorArray {
+    /// Create a VectorArray from a raw mlx_vector_array pointer.
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must be a valid, non-null pointer to a heap-allocated mlx_vector_array.
+    pub(crate) fn from_ptr(ptr: *mut mlx_sys::mlx_vector_array) -> Self {
+        unsafe { Self { c_vec: ptr.read() } }
+    }
     pub(crate) fn as_ptr(&self) -> mlx_sys::mlx_vector_array {
         self.c_vec
     }
@@ -278,7 +286,8 @@ where
 }
 
 /// Function to create a new (+1 reference) mlx_vector_array from a vector of Array
-fn new_mlx_vector_array(arrays: Vec<Array>) -> mlx_sys::mlx_vector_array {
+/// Create a new mlx_vector_array from existing Arrays.
+pub(crate) fn new_mlx_vector_array(arrays: Vec<Array>) -> mlx_sys::mlx_vector_array {
     unsafe {
         let result = mlx_sys::mlx_vector_array_new();
         let ctx_ptrs: Vec<mlx_sys::mlx_array> = arrays.iter().map(|array| array.as_ptr()).collect();

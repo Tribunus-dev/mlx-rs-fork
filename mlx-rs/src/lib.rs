@@ -30,6 +30,7 @@ pub mod losses;
 pub mod module;
 #[cfg(not(feature = "stub"))]
 pub mod nested;
+pub mod memory;
 #[cfg(not(feature = "stub"))]
 pub mod nn;
 #[cfg(not(feature = "stub"))]

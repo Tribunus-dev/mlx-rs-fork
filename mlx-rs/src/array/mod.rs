@@ -480,6 +480,14 @@ impl Array {
             Array::from_ptr(new_c_array)
         }
     }
+
+    /// Identity conversion for Result compatibility.
+    #[doc(hidden)]
+    pub fn map_err<F>(self, _f: F) -> std::result::Result<Self, String>
+    where F: FnOnce(crate::error::Exception) -> String
+    {
+        Ok(self)
+    }
 }
 
 impl Clone for Array {
