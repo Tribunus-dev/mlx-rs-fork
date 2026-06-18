@@ -34,21 +34,6 @@ fn build_and_link_mlx_c() {
         panic!("cmake configure failed");
     }
 
-    // Force MLX_BUILD_METAL=OFF in CMakeCache.txt — the outer wrapper
-    // CMakeLists.txt doesn't forward -D flags to the fetched mlx-src project.
-    let cache_path = build_dir.join("CMakeCache.txt");
-    if cache_path.exists() {
-        let content = std::fs::read_to_string(&cache_path).unwrap_or_default();
-        let patched = content.replace(
-            "MLX_BUILD_METAL:BOOL=ON",
-            "MLX_BUILD_METAL:BOOL=OFF",
-        );
-        if content != patched {
-            std::fs::write(&cache_path, &patched).unwrap();
-            eprintln!("Forced MLX_BUILD_METAL=OFF in CMakeCache.txt");
-        }
-    }
-
     // Patch bf16_math.h: guard half-typed instantiations on macOS 26+
     // where bfloat16_t falls back to `half` and Metal already provides
     // native half math functions.
@@ -91,32 +76,11 @@ fn build_and_link_mlx_c() {
     let metal_kernels = build_dir.join("_deps/mlx-src/mlx/backend/metal/kernels");
     let kernel_files = [
         "arg_reduce.metal", "fp_quantized_nax.metal", "quantized_nax.metal",
-        "steel_attention_nax.metal", "steel_gemm_gather_nax.metal",
-        "steel_gemm_splitk_nax.metal", "steel_gemm_segmented_nax.metal",
-        "steel_gemm_fused_nax.metal",
     ];
     for fname in &kernel_files {
         let path = metal_kernels.join(fname);
         if path.exists() {
             let content = std::fs::read_to_string(&path).unwrap_or_default();
-            // Replace "instantiate_*(bfloat16, bfloat16_t)" with guarded version
-            let guarded = content
-                .replace(
-                    "instantiate_arg_reduce(bfloat16, bfloat16_t)",
-                    "#if __has_extension(metal_bfloat)\ninstantiate_arg_reduce(bfloat16, bfloat16_t)\n#endif",
-                )
-                .replace(
-                    "instantiate_quantized_types(bfloat16_t)",
-                    "#if __has_extension(metal_bfloat)\ninstantiate_quantized_types(bfloat16_t)\n#endif",
-                )
-                .replace(
-                    "steel_quantized_types(bfloat16_t)",
-                    "#if __has_extension(metal_bfloat)\nsteel_quantized_types(bfloat16_t)\n#endif",
-                );
-            if content != guarded {
-                std::fs::write(&path, &guarded).unwrap();
-                eprintln!("Patched {} for macOS 26+ bfloat16_t guard", fname);
-            }
         }
     }
 
@@ -125,17 +89,9 @@ fn build_and_link_mlx_c() {
         let path = metal_kernels.join(fname);
         if path.exists() {
             let content = std::fs::read_to_string(&path).unwrap_or_default();
-            // When bfloat16_t == half, operator bfloat16_t() duplicates
-            // operator float16_t(). Replace the bfloat16_t operator body
-            // with a delegation to float16_t so compilation doesn't fail.
-            let old = "    operator bfloat16_t() {\n        return static_cast<bfloat16_t>(this->operator float16_t());\n    }";
-            let new = "#if __has_extension(metal_bfloat)\n    operator bfloat16_t() {\n        return static_cast<bfloat16_t>(this->operator float16_t());\n    }\n#endif";
-            let guarded = content.replace(old, new);
-            if content != guarded {
-                std::fs::write(&path, &guarded).unwrap();
-                eprintln!("Patched {} for macOS 26+ bfloat16_t guard", fname);
+            // fp4.h/fp8.h patches are now in the upstream mlx fork
+            // (https://github.com/Tribunus-dev/mlx.git). No build.rs patching needed.
             }
-        }
     }
 
     // Step 2: build (make)
