@@ -112,18 +112,8 @@ fn build_and_link_mlx_c() {
     for fname in &kernel_files {
         let path = metal_kernels.join(fname);
         if path.exists() {
-            let content = std::fs::read_to_string(&path).unwrap_or_default();
+            let _content = std::fs::read_to_string(&path).unwrap_or_default();
         }
-    }
-
-    // Patch fp4.h and fp8.h: guard operator bfloat16_t()
-    for fname in &["fp4.h", "fp8.h"] {
-        let path = metal_kernels.join(fname);
-        if path.exists() {
-            let content = std::fs::read_to_string(&path).unwrap_or_default();
-            // fp4.h/fp8.h patches are now in the upstream mlx fork
-            // (https://github.com/Tribunus-dev/mlx.git). No build.rs patching needed.
-            }
     }
 
     // Patch fp_quantized*.metal: guard instantiate_quantized_types(bfloat16_t)
@@ -131,13 +121,18 @@ fn build_and_link_mlx_c() {
         let path = metal_kernels.join(fname);
         if path.exists() {
             let content = std::fs::read_to_string(&path).unwrap_or_default();
-            let guarded = content.replace(
-                "instantiate_quantized_types(bfloat16_t)",
-                "#if defined(__HAVE_BFLOAT__)\ninstantiate_quantized_types(bfloat16_t)\n#endif",
-            );
-            if content != guarded {
-                std::fs::write(&path, &guarded).unwrap();
-                eprintln!("Patched {} for macOS 26+ bfloat16_t guard", fname);
+            // macOS 26+ Metal: bfloat16_t type exists but fp* conversion operators
+            // are unavailable. Comment out the bfloat16_t instantiation entirely —
+            // float16_t and float cover all precision tiers needed for inference.
+            if !content.contains("// macOS 26: bfloat16_t") {
+                let guarded = content.replace(
+                    "instantiate_quantized_types(bfloat16_t)",
+                    "// macOS 26: bfloat16_t fp* conversions unavailable; float16_t covers all.\n// instantiate_quantized_types(bfloat16_t)",
+                );
+                if content != guarded {
+                    std::fs::write(&path, &guarded).unwrap();
+                    eprintln!("Patched {} — commented out bfloat16_t instantiation (macOS 26)", fname);
+                }
             }
         }
     }
