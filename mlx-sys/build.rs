@@ -56,7 +56,7 @@ fn build_and_link_mlx_c() {
     let utils_h_path = build_dir.join("_deps/mlx-src/mlx/backend/metal/kernels/utils.h");
     if utils_h_path.exists() {
         let content = std::fs::read_to_string(&utils_h_path).unwrap_or_default();
-        // Replace instantiate_float_limit(bfloat16_t) with guarded version
+        // Guard bfloat16_t: instantiate_float_limit(bfloat16_t) on macOS 26+
         let guarded = content.replace(
             "instantiate_float_limit(bfloat16_t);\n",
             "#if __has_extension(metal_bfloat)\ninstantiate_float_limit(bfloat16_t);\n#endif\n",
@@ -68,6 +68,56 @@ fn build_and_link_mlx_c() {
         if content != guarded {
             std::fs::write(&utils_h_path, &guarded).unwrap();
             eprintln!("Patched utils.h for macOS 26+ compatibility (bfloat16_t guards)");
+        }
+    }
+
+    // Patch all *.metal and *.h files: remove duplicate bfloat16_t instantiations
+    // that collide when bfloat16_t == half on macOS 26+.
+    let metal_kernels = build_dir.join("_deps/mlx-src/mlx/backend/metal/kernels");
+    let kernel_files = [
+        "arg_reduce.metal", "fp_quantized_nax.metal", "quantized_nax.metal",
+        "steel_attention_nax.metal", "steel_gemm_gather_nax.metal",
+        "steel_gemm_splitk_nax.metal", "steel_gemm_segmented_nax.metal",
+        "steel_gemm_fused_nax.metal",
+    ];
+    for fname in &kernel_files {
+        let path = metal_kernels.join(fname);
+        if path.exists() {
+            let content = std::fs::read_to_string(&path).unwrap_or_default();
+            // Replace "instantiate_*(bfloat16, bfloat16_t)" with guarded version
+            let guarded = content
+                .replace(
+                    "instantiate_arg_reduce(bfloat16, bfloat16_t)",
+                    "#if __has_extension(metal_bfloat)\ninstantiate_arg_reduce(bfloat16, bfloat16_t)\n#endif",
+                )
+                .replace(
+                    "instantiate_quantized_types(bfloat16_t)",
+                    "#if __has_extension(metal_bfloat)\ninstantiate_quantized_types(bfloat16_t)\n#endif",
+                )
+                .replace(
+                    "steel_quantized_types(bfloat16_t)",
+                    "#if __has_extension(metal_bfloat)\nsteel_quantized_types(bfloat16_t)\n#endif",
+                );
+            if content != guarded {
+                std::fs::write(&path, &guarded).unwrap();
+                eprintln!("Patched {} for macOS 26+ bfloat16_t guard", fname);
+            }
+        }
+    }
+
+    // Patch fp4.h and fp8.h: guard operator bfloat16_t()
+    for fname in &["fp4.h", "fp8.h"] {
+        let path = metal_kernels.join(fname);
+        if path.exists() {
+            let content = std::fs::read_to_string(&path).unwrap_or_default();
+            let guarded = content.replace(
+                "operator bfloat16_t()",
+                "#if __has_extension(metal_bfloat)\n    operator bfloat16_t()\n#endif",
+            );
+            if content != guarded {
+                std::fs::write(&path, &guarded).unwrap();
+                eprintln!("Patched {} for macOS 26+ bfloat16_t guard", fname);
+            }
         }
     }
 
