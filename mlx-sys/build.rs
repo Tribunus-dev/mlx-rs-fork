@@ -10,21 +10,21 @@ fn build_and_link_mlx_c() {
     let install_prefix = out_dir.join("install");
 
     let mut cmake_args = vec![
-        "-S", mlx_c_src.to_str().unwrap(),
-        "-B", build_dir.to_str().unwrap(),
+        "-S".to_string(), mlx_c_src.to_str().unwrap().to_string(),
+        "-B".to_string(), build_dir.to_str().unwrap().to_string(),
         format!("-DCMAKE_INSTALL_PREFIX={}", install_prefix.to_str().unwrap()),
-        "-DMLX_BUILD_METAL=OFF",
-        "-DMLX_BUILD_ACCELERATE=OFF",
+        "-DMLX_BUILD_METAL=OFF".to_string(),
+        "-DMLX_BUILD_ACCELERATE=OFF".to_string(),
     ];
 
     #[cfg(debug_assertions)]
-    { cmake_args.push("-DCMAKE_BUILD_TYPE=Debug"); }
+    { cmake_args.push("-DCMAKE_BUILD_TYPE=Debug".to_string()); }
     #[cfg(not(debug_assertions))]
-    { cmake_args.push("-DCMAKE_BUILD_TYPE=Release"); }
+    { cmake_args.push("-DCMAKE_BUILD_TYPE=Release".to_string()); }
     #[cfg(feature = "metal")]
-    { cmake_args.push("-DMLX_BUILD_METAL=ON"); }
+    { cmake_args.push("-DMLX_BUILD_METAL=ON".to_string()); }
     #[cfg(feature = "accelerate")]
-    { cmake_args.push("-DMLX_BUILD_ACCELERATE=ON"); }
+    { cmake_args.push("-DMLX_BUILD_ACCELERATE=ON".to_string()); }
 
     let status = Command::new("cmake")
         .args(&cmake_args)
