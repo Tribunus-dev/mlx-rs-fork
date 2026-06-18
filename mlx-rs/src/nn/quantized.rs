@@ -70,12 +70,15 @@ pub struct QuantizedEmbedding {
     pub bits: i32,
 
     /// Scales
+    #[param]
     pub scales: Param<Array>,
 
     /// Biases
+    #[param]
     pub biases: Param<Array>,
 
     /// Inner embedding
+    #[param]
     pub inner: Embedding,
 }
 
@@ -168,7 +171,7 @@ impl QuantizedEmbedding {
             x.as_ref(),
             &self.inner.weight,
             &self.scales,
-            &self.biases,
+            self.biases.as_ref(),
             true,
             self.group_size,
             self.bits,
@@ -366,7 +369,7 @@ impl Module<&Array> for QuantizedLinear {
             x,
             &self.inner.weight,
             &self.scales,
-            &self.biases,
+            self.biases.as_ref(),
             true,
             self.group_size,
             self.bits,

@@ -18,6 +18,10 @@ fn build_and_link_mlx_c() {
         "-DMLX_BUILD_ACCELERATE=OFF".to_string(),
     ];
 
+    // Use Xcode's clang to ensure compatibility with the macOS SDK
+    config.define("CMAKE_C_COMPILER", "/usr/bin/cc");
+    config.define("CMAKE_CXX_COMPILER", "/usr/bin/c++");
+
     #[cfg(debug_assertions)]
     { cmake_args.push("-DCMAKE_BUILD_TYPE=Debug".to_string()); }
     #[cfg(not(debug_assertions))]
@@ -194,6 +198,14 @@ fn build_and_link_mlx_c() {
         if std::env::var("CARGO_CFG_TARGET_OS").unwrap() == "macos" || std::env::var("CARGO_CFG_TARGET_OS").unwrap() == "ios" {
             println!("cargo:rustc-link-lib=framework=Foundation");
         }
+    }
+
+    // Link against Xcode's clang runtime for ___isPlatformVersionAtLeast symbol
+    // This is needed on macOS 26+ where the bundled LLVM runtime may be outdated
+    // See: https://github.com/conda-forge/llvmdev-feedstock/issues/244
+    if let Some(clang_rt_path) = find_clang_rt_path() {
+        println!("cargo:rustc-link-search={}", clang_rt_path);
+        println!("cargo:rustc-link-lib=static=clang_rt.osx");
     }
 }
 

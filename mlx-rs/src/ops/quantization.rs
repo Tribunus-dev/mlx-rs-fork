@@ -1,3 +1,5 @@
+use std::ffi::CStr;
+
 use mlx_internal_macros::{default_device, generate_macro};
 
 use crate::{
@@ -31,8 +33,8 @@ pub fn quantize_device(
     #[optional] bits: impl Into<Option<i32>>,
     #[optional] stream: impl AsRef<Stream>,
 ) -> Result<(Array, Array, Array)> {
-    let group_size = group_size.into().unwrap_or(64);
-    let bits = bits.into().unwrap_or(4);
+    let group_size = optional_int(group_size.into(), DEFAULT_GROUP_SIZE);
+    let bits = optional_int(bits.into(), DEFAULT_BITS);
 
     let group_size = mlx_sys::mlx_optional_int_ {
         value: group_size,
@@ -72,19 +74,19 @@ pub fn quantize_device(
 #[allow(clippy::too_many_arguments)]
 #[generate_macro]
 #[default_device]
-pub fn quantized_matmul_device(
+pub fn quantized_matmul_device<'a>(
     x: impl AsRef<Array>,
     w: impl AsRef<Array>,
     scales: impl AsRef<Array>,
-    biases: impl AsRef<Array>,
+    #[optional] biases: impl Into<Option<&'a Array>>,
     #[optional] transpose: impl Into<Option<bool>>,
     #[optional] group_size: impl Into<Option<i32>>,
     #[optional] bits: impl Into<Option<i32>>,
     #[optional] stream: impl AsRef<Stream>,
 ) -> Result<Array> {
     let transpose = transpose.into().unwrap_or(false);
-    let group_size = group_size.into().unwrap_or(64);
-    let bits = bits.into().unwrap_or(4);
+    let group_size = optional_int(group_size.into(), DEFAULT_GROUP_SIZE);
+    let bits = optional_int(bits.into(), DEFAULT_BITS);
 
     <Array as Guarded>::try_from_op(|res| unsafe {
         mlx_sys::mlx_quantized_matmul(
@@ -92,7 +94,10 @@ pub fn quantized_matmul_device(
             x.as_ref().as_ptr(),
             w.as_ref().as_ptr(),
             scales.as_ref().as_ptr(),
-            biases.as_ref().as_ptr(),
+            biases
+                .into()
+                .map(|a| a.as_ptr())
+                .unwrap_or(mlx_sys::mlx_array_new()),
             transpose,
             mlx_sys::mlx_optional_int_ {
                 value: group_size,
@@ -116,16 +121,16 @@ pub fn quantized_matmul_device(
 /// documentation](https://ml-explore.github.io/mlx/build/html/python/_autosummary/mlx.core.dequantize.html)
 #[generate_macro]
 #[default_device]
-pub fn dequantize_device(
+pub fn dequantize_device<'a>(
     w: impl AsRef<Array>,
     scales: impl AsRef<Array>,
-    biases: impl AsRef<Array>,
+    #[optional] biases: impl Into<Option<&'a Array>>,
     #[optional] group_size: impl Into<Option<i32>>,
     #[optional] bits: impl Into<Option<i32>>,
     #[optional] stream: impl AsRef<Stream>,
 ) -> Result<Array> {
-    let group_size = group_size.into().unwrap_or(64);
-    let bits = bits.into().unwrap_or(4);
+    let group_size = optional_int(group_size.into(), DEFAULT_GROUP_SIZE);
+    let bits = optional_int(bits.into(), DEFAULT_BITS);
 
     <Array as Guarded>::try_from_op(|res| unsafe {
         mlx_sys::mlx_dequantize(
@@ -157,8 +162,8 @@ pub fn dequantize_device(
 #[cfg(test)]
 mod tests {
     use crate::{
-        ops::{dequantize, expand_dims, quantize},
-        Array,
+        ops::{dequantize, expand_dims, quantize, quantized_matmul},
+        random, Array,
     };
 
     #[test]
@@ -178,5 +183,113 @@ mod tests {
             let max_diff = ((&x - &x_hat).abs().unwrap().max(None).unwrap()).item::<f32>();
             assert!(max_diff <= 127.0 / (1 << i) as f32);
         }
+    }
+
+    // Test adapted from Python test `test_quantized.py/test_qmm`
+    #[test]
+    fn test_quantized_matmul() {
+        random::seed(0).unwrap();
+
+        let group_size = 64;
+        let bits = 4;
+        let m = 32;
+        let n = 128;
+        let k = 128;
+
+        let scale = 1.0 / (k as f32).sqrt();
+        let x = random::normal::<f32>(&[m, k], None, None, None).unwrap() * scale;
+        let w = random::normal::<f32>(&[k, n], None, None, None).unwrap() * scale;
+
+        let (w_q, scales, biases) = quantize(&w, group_size, bits).unwrap();
+        let w_hat = dequantize(&w_q, &scales, &biases, group_size, bits).unwrap();
+
+        // Test with biases
+        let y_q = quantized_matmul(&x, &w_q, &scales, &biases, false, group_size, bits).unwrap();
+        let y_hat = x.matmul(&w_hat).unwrap();
+
+        assert_eq!(y_q.shape(), y_hat.shape());
+        let max_diff = ((&y_q - &y_hat).abs().unwrap().max(None).unwrap()).item::<f32>();
+        assert!(max_diff < 1e-3, "max_diff: {}", max_diff);
+    }
+
+    // Test adapted from Python test `test_quantized.py/test_gather_qmm`
+    #[test]
+    fn test_gather_qmm() {
+        use crate::ops::{gather_mm, gather_qmm, swap_axes};
+
+        random::seed(0).unwrap();
+
+        let group_size = 64;
+        let bits = 4;
+
+        // Helper to quantize with transpose option
+        fn quantize_with_transpose(
+            w: &Array,
+            transpose: bool,
+            group_size: i32,
+            bits: i32,
+        ) -> (Array, Array, Array, Array) {
+            let (w_q, scales, biases) = quantize(w, group_size, bits).unwrap();
+            let mut w_hat = dequantize(&w_q, &scales, &biases, group_size, bits).unwrap();
+            if transpose {
+                w_hat = swap_axes(&w_hat, -1, -2).unwrap();
+            }
+            (w_hat, w_q, scales, biases)
+        }
+
+        // Test case 1: batch_A=(1,), lhs_indices=(0,), batch_B=(3,), rhs_indices=(2, 1)
+        let m = 32;
+        let n = 64;
+        let k = 64;
+
+        let x = random::normal::<f32>(&[1, m, k], None, None, None).unwrap();
+        let w = random::normal::<f32>(&[3, n, k], None, None, None).unwrap(); // transpose=true shape
+        let (w_hat, w_q, scales, biases) = quantize_with_transpose(&w, true, group_size, bits);
+
+        let lhs_indices = Array::from_slice(&[0u32], &[1]);
+        let rhs_indices = Array::from_slice(&[2u32, 1], &[2]);
+
+        // Compare gather_mm on dequantized weights vs gather_qmm
+        let c1 = gather_mm(&x, &w_hat, &lhs_indices, &rhs_indices, None).unwrap();
+        let c2 = gather_qmm(
+            &x,
+            &w_q,
+            &scales,
+            &biases,
+            &lhs_indices,
+            &rhs_indices,
+            true,
+            group_size,
+            bits,
+            None,
+        )
+        .unwrap();
+        assert!(
+            c1.all_close(&c2, 1e-4, 1e-4, None).unwrap().item::<bool>(),
+            "gather_qmm test case 1 failed"
+        );
+
+        // Test case 2: batch_A=(5,), lhs_indices=(0, 2), batch_B=(3,), rhs_indices=(2, 1)
+        let x = random::normal::<f32>(&[5, m, k], None, None, None).unwrap();
+        let lhs_indices = Array::from_slice(&[0u32, 2], &[2]);
+
+        let c1 = gather_mm(&x, &w_hat, &lhs_indices, &rhs_indices, None).unwrap();
+        let c2 = gather_qmm(
+            &x,
+            &w_q,
+            &scales,
+            &biases,
+            &lhs_indices,
+            &rhs_indices,
+            true,
+            group_size,
+            bits,
+            None,
+        )
+        .unwrap();
+        assert!(
+            c1.all_close(&c2, 1e-4, 1e-4, None).unwrap().item::<bool>(),
+            "gather_qmm test case 2 failed"
+        );
     }
 }

@@ -695,6 +695,215 @@ pub fn topk_device(
     })
 }
 
+/// Scatter updates to the array at the given indices along a single axis.
+///
+/// # Params
+///
+/// - `a`: Input array
+/// - `indices`: Indices array specifying positions to scatter into
+/// - `updates`: Values to scatter
+/// - `axis`: The axis along which to scatter
+#[generate_macro(customize(root = "$crate::ops::indexing"))]
+#[default_device]
+pub fn scatter_single_device(
+    a: impl AsRef<Array>,
+    indices: impl AsRef<Array>,
+    updates: impl AsRef<Array>,
+    axis: i32,
+    #[optional] stream: impl AsRef<Stream>,
+) -> Result<Array> {
+    Array::try_from_op(|res| unsafe {
+        mlx_sys::mlx_scatter_single(
+            res,
+            a.as_ref().as_ptr(),
+            indices.as_ref().as_ptr(),
+            updates.as_ref().as_ptr(),
+            axis,
+            stream.as_ref().as_ptr(),
+        )
+    })
+}
+
+/// Scatter-add updates to the array at the given indices along a single axis.
+///
+/// Adds the update values to the existing values at the specified indices.
+///
+/// # Params
+///
+/// - `a`: Input array
+/// - `indices`: Indices array specifying positions to scatter into
+/// - `updates`: Values to add
+/// - `axis`: The axis along which to scatter
+#[generate_macro(customize(root = "$crate::ops::indexing"))]
+#[default_device]
+pub fn scatter_add_single_device(
+    a: impl AsRef<Array>,
+    indices: impl AsRef<Array>,
+    updates: impl AsRef<Array>,
+    axis: i32,
+    #[optional] stream: impl AsRef<Stream>,
+) -> Result<Array> {
+    Array::try_from_op(|res| unsafe {
+        mlx_sys::mlx_scatter_add_single(
+            res,
+            a.as_ref().as_ptr(),
+            indices.as_ref().as_ptr(),
+            updates.as_ref().as_ptr(),
+            axis,
+            stream.as_ref().as_ptr(),
+        )
+    })
+}
+
+/// Scatter-max updates to the array at the given indices along a single axis.
+///
+/// Takes the maximum of the update values and existing values at the specified indices.
+///
+/// # Params
+///
+/// - `a`: Input array
+/// - `indices`: Indices array specifying positions to scatter into
+/// - `updates`: Values to compare
+/// - `axis`: The axis along which to scatter
+#[generate_macro(customize(root = "$crate::ops::indexing"))]
+#[default_device]
+pub fn scatter_max_single_device(
+    a: impl AsRef<Array>,
+    indices: impl AsRef<Array>,
+    updates: impl AsRef<Array>,
+    axis: i32,
+    #[optional] stream: impl AsRef<Stream>,
+) -> Result<Array> {
+    Array::try_from_op(|res| unsafe {
+        mlx_sys::mlx_scatter_max_single(
+            res,
+            a.as_ref().as_ptr(),
+            indices.as_ref().as_ptr(),
+            updates.as_ref().as_ptr(),
+            axis,
+            stream.as_ref().as_ptr(),
+        )
+    })
+}
+
+/// Scatter-min updates to the array at the given indices along a single axis.
+///
+/// Takes the minimum of the update values and existing values at the specified indices.
+///
+/// # Params
+///
+/// - `a`: Input array
+/// - `indices`: Indices array specifying positions to scatter into
+/// - `updates`: Values to compare
+/// - `axis`: The axis along which to scatter
+#[generate_macro(customize(root = "$crate::ops::indexing"))]
+#[default_device]
+pub fn scatter_min_single_device(
+    a: impl AsRef<Array>,
+    indices: impl AsRef<Array>,
+    updates: impl AsRef<Array>,
+    axis: i32,
+    #[optional] stream: impl AsRef<Stream>,
+) -> Result<Array> {
+    Array::try_from_op(|res| unsafe {
+        mlx_sys::mlx_scatter_min_single(
+            res,
+            a.as_ref().as_ptr(),
+            indices.as_ref().as_ptr(),
+            updates.as_ref().as_ptr(),
+            axis,
+            stream.as_ref().as_ptr(),
+        )
+    })
+}
+
+/// Scatter-prod updates to the array at the given indices along a single axis.
+///
+/// Multiplies the update values with existing values at the specified indices.
+///
+/// # Params
+///
+/// - `a`: Input array
+/// - `indices`: Indices array specifying positions to scatter into
+/// - `updates`: Values to multiply
+/// - `axis`: The axis along which to scatter
+#[generate_macro(customize(root = "$crate::ops::indexing"))]
+#[default_device]
+pub fn scatter_prod_single_device(
+    a: impl AsRef<Array>,
+    indices: impl AsRef<Array>,
+    updates: impl AsRef<Array>,
+    axis: i32,
+    #[optional] stream: impl AsRef<Stream>,
+) -> Result<Array> {
+    Array::try_from_op(|res| unsafe {
+        mlx_sys::mlx_scatter_prod_single(
+            res,
+            a.as_ref().as_ptr(),
+            indices.as_ref().as_ptr(),
+            updates.as_ref().as_ptr(),
+            axis,
+            stream.as_ref().as_ptr(),
+        )
+    })
+}
+
+/// Gather elements from the array at the given indices along a single axis.
+///
+/// # Params
+///
+/// - `a`: Input array
+/// - `indices`: Indices array specifying positions to gather from
+/// - `axis`: The axis along which to gather
+/// - `slice_sizes`: The sizes of the slices to gather
+#[generate_macro(customize(root = "$crate::ops::indexing"))]
+#[default_device]
+pub fn gather_single_device(
+    a: impl AsRef<Array>,
+    indices: impl AsRef<Array>,
+    axis: i32,
+    slice_sizes: &[i32],
+    #[optional] stream: impl AsRef<Stream>,
+) -> Result<Array> {
+    Array::try_from_op(|res| unsafe {
+        mlx_sys::mlx_gather_single(
+            res,
+            a.as_ref().as_ptr(),
+            indices.as_ref().as_ptr(),
+            axis,
+            slice_sizes.as_ptr(),
+            slice_sizes.len(),
+            stream.as_ref().as_ptr(),
+        )
+    })
+}
+
+/// Scatter values into an array at locations where mask is true.
+///
+/// # Params
+///
+/// - `a`: Input array
+/// - `mask`: Boolean mask array indicating where to scatter
+/// - `src`: Source values to scatter
+#[generate_macro(customize(root = "$crate::ops::indexing"))]
+#[default_device]
+pub fn masked_scatter_device(
+    a: impl AsRef<Array>,
+    mask: impl AsRef<Array>,
+    src: impl AsRef<Array>,
+    #[optional] stream: impl AsRef<Stream>,
+) -> Result<Array> {
+    Array::try_from_op(|res| unsafe {
+        mlx_sys::mlx_masked_scatter(
+            res,
+            a.as_ref().as_ptr(),
+            mask.as_ref().as_ptr(),
+            src.as_ref().as_ptr(),
+            stream.as_ref().as_ptr(),
+        )
+    })
+}
+
 /* -------------------------------------------------------------------------- */
 /*                              Helper functions                              */
 /* -------------------------------------------------------------------------- */
