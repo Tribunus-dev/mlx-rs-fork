@@ -35,6 +35,7 @@ fn build_and_link_mlx_c() {
     }
 
     // Patch bf16.h: apply struct-based bfloat16_t fallback for macOS 26+
+    let patches_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("patches");
     // (without this, bfloat16_t == half, which causes duplicate instantiations
     // across every .metal file that instantiates BOTH float16_t and bfloat16_t)
     let bf16_path = build_dir.join("_deps/mlx-src/mlx/backend/metal/kernels/bf16.h");
