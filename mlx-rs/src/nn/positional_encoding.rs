@@ -119,9 +119,13 @@ where
 
     fn forward(&mut self, input: Input) -> Result<Self::Output, Self::Error> {
         let RopeInput { x, offset } = input.into();
-        let shape = x.shape();
-        let x = x.reshape(&[-1, x.dim(-2), x.dim(-1)])?;
-        let x = crate::fast::rope(
+        // Apply RoPE on the input shape directly. Reshaping to 3D
+        // [-1, L, head_dim] before `mx.fast.rope` tripped a fast-rope bug for
+        // single-position (L == 1, decode) input: only the first batch row was
+        // rotated, leaving every head past the first un-rotated and corrupting
+        // decode. Python mlx_lm calls `mx.fast.rope` on the 4D
+        // [B, n_heads, L, head_dim] tensor directly, which is correct.
+        crate::fast::rope(
             x,
             self.dimensions,
             self.traditional,
@@ -129,8 +133,7 @@ where
             self.scale,
             offset,
             None,
-        )?;
-        x.reshape(shape)
+        )
     }
 
     fn training_mode(&mut self, _mode: bool) {}
@@ -460,6 +463,57 @@ mod tests {
             116.80096435546875,
             abs <= 2.3360192871093752
         );
+    }
+
+    // Regression test: RoPE must rotate EVERY head for single-position (L = 1)
+    // input, as happens on every decode step. `forward` used to reshape
+    // [B, n_heads, L, head_dim] to [-1, L, head_dim] before `mx.fast.rope`; for
+    // L == 1 the resulting [B*n_heads, 1, head_dim] shape rotated only the first
+    // row, leaving every head past the first un-rotated and corrupting decode.
+    // The rotation depends only on position, so with identical heads every head
+    // must come out identical to a single-head reference.
+    #[test]
+    fn test_rope_rotates_all_heads_when_single_position() {
+        let head: [f32; 8] = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8];
+        let mut data = Vec::new();
+        for _ in 0..4 {
+            data.extend_from_slice(&head);
+        }
+        // [B = 1, n_heads = 4, L = 1, head_dim = 8], every head identical.
+        let x = crate::Array::from_slice(&data, &[1, 4, 1, 8]);
+        let x1 = crate::Array::from_slice(&head, &[1, 1, 1, 8]);
+
+        let mut rope = Rope::new(8);
+        // offset = 1 so the rotation is non-trivial (position 0 is identity).
+        let out = rope.forward((&x, 1)).unwrap();
+        assert_eq!(out.shape(), &[1, 4, 1, 8]);
+        let out1 = rope.forward((&x1, 1)).unwrap();
+
+        // Every head must match the single-head reference (all rotated alike).
+        let expected = crate::ops::broadcast_to(&out1, &[1, 4, 1, 8]).unwrap();
+        let max_head_diff = out
+            .subtract(&expected)
+            .unwrap()
+            .abs()
+            .unwrap()
+            .max(None)
+            .unwrap()
+            .item::<f32>();
+        assert!(
+            max_head_diff < 1e-5,
+            "heads not all rotated alike (max diff {max_head_diff})"
+        );
+
+        // Sanity: offset 1 actually rotated the values (not an identity no-op).
+        let rotated = out1
+            .subtract(&x1)
+            .unwrap()
+            .abs()
+            .unwrap()
+            .max(None)
+            .unwrap()
+            .item::<f32>();
+        assert!(rotated > 1e-4, "offset 1 should rotate (changed {rotated})");
     }
 
     // The unit test below is adapted from the swift binding at:
