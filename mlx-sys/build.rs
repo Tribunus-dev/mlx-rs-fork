@@ -1,44 +1,43 @@
-extern crate cmake;
-
-use cmake::Config;
-use std::{env, path::PathBuf};
+use std::{env, path::PathBuf, process::Command};
 
 fn build_and_link_mlx_c() {
-    let mut config = Config::new("src/mlx-c");
-    config.very_verbose(true);
-    config.define("CMAKE_INSTALL_PREFIX", ".");
+    // build the mlx-c project
+    // Step 1: cmake configure (fetches sources, creates build tree)
+    let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let mlx_c_src = manifest_dir.join("src/mlx-c");
+    let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
+    let build_dir = out_dir.join("build");
+    let install_prefix = out_dir.join("install");
+
+    let mut cmake_args = vec![
+        "-S", mlx_c_src.to_str().unwrap(),
+        "-B", build_dir.to_str().unwrap(),
+        format!("-DCMAKE_INSTALL_PREFIX={}", install_prefix.to_str().unwrap()),
+        "-DMLX_BUILD_METAL=OFF",
+        "-DMLX_BUILD_ACCELERATE=OFF",
+    ];
 
     #[cfg(debug_assertions)]
-    {
-        config.define("CMAKE_BUILD_TYPE", "Debug");
-    }
-
+    { cmake_args.push("-DCMAKE_BUILD_TYPE=Debug"); }
     #[cfg(not(debug_assertions))]
-    {
-        config.define("CMAKE_BUILD_TYPE", "Release");
-    }
-
-    config.define("MLX_BUILD_METAL", "OFF");
-    config.define("MLX_BUILD_ACCELERATE", "OFF");
-
+    { cmake_args.push("-DCMAKE_BUILD_TYPE=Release"); }
     #[cfg(feature = "metal")]
-    {
-        config.define("MLX_BUILD_METAL", "ON");
-    }
-
+    { cmake_args.push("-DMLX_BUILD_METAL=ON"); }
     #[cfg(feature = "accelerate")]
-    {
-        config.define("MLX_BUILD_ACCELERATE", "ON");
-    }
+    { cmake_args.push("-DMLX_BUILD_ACCELERATE=ON"); }
 
-    // build the mlx-c project
-    let dst = config.build();
+    let status = Command::new("cmake")
+        .args(&cmake_args)
+        .status()
+        .expect("failed to run cmake configure");
+    if !status.success() {
+        panic!("cmake configure failed");
+    }
 
     // Patch bf16_math.h: guard half-typed instantiations on macOS 26+
     // where bfloat16_t falls back to `half` and Metal already provides
     // native half math functions.
-    let patches_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("patches");
-    let bf16_math_path = dst.join("build/_deps/mlx-src/mlx/backend/metal/kernels/bf16_math.h");
+    let bf16_math_path = build_dir.join("_deps/mlx-src/mlx/backend/metal/kernels/bf16_math.h");
     if bf16_math_path.exists() {
         let content = std::fs::read_to_string(&bf16_math_path).unwrap_or_default();
         let guarded = content.replace(
@@ -48,10 +47,25 @@ fn build_and_link_mlx_c() {
         if content != guarded {
             std::fs::write(&bf16_math_path, &guarded).unwrap();
             eprintln!("Patched bf16_math.h for macOS 26+ compatibility (half guard)");
+        } else {
+            eprintln!("NOT patched: {} does not exist", bf16_math_path.display());
         }
+    } else {
+        eprintln!("NOT patched: {} does not exist", bf16_math_path.display());
     }
 
-    println!("cargo:rustc-link-search=native={}/build/lib", dst.display());
+    // Step 2: build (make)
+    let status = Command::new("cmake")
+        .args(["--build", build_dir.to_str().unwrap()])
+        .args(["-j", "8"])
+        .args(["--target", "install"])
+        .status()
+        .expect("failed to run cmake --build");
+    if !status.success() {
+        panic!("cmake --build failed");
+    }
+
+    println!("cargo:rustc-link-search=native={}/build/lib", build_dir.display());
     println!("cargo:rustc-link-lib=static=mlx");
     println!("cargo:rustc-link-lib=static=mlxc");
 
