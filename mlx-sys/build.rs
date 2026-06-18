@@ -12,7 +12,8 @@ fn build_and_link_mlx_c() {
     let mut cmake_args = vec![
         "-S".to_string(), mlx_c_src.to_str().unwrap().to_string(),
         "-B".to_string(), build_dir.to_str().unwrap().to_string(),
-        format!("-DCMAKE_INSTALL_PREFIX={}", install_prefix.to_str().unwrap()),
+        format!("-DCMAKE_INSTALL_PREFIX={}", install_prefix.to_str().unwrap()).to_string(),
+        "-DCMAKE_OSX_DEPLOYMENT_TARGET=14.0".to_string(),
         "-DMLX_BUILD_METAL=OFF".to_string(),
         "-DMLX_BUILD_ACCELERATE=OFF".to_string(),
     ];
