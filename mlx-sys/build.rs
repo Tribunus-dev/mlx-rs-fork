@@ -25,6 +25,11 @@ fn build_and_link_mlx_c() {
     { cmake_args.push("-DMLX_BUILD_METAL=ON".to_string()); }
     #[cfg(feature = "accelerate")]
     { cmake_args.push("-DMLX_BUILD_ACCELERATE=ON".to_string()); }
+    // macOS 26+ Metal 3.2 deprecated the bfloat enum value, breaking template
+    // metaprogramming in fp_quantized_nax.h that uses bfloat as a weight type tag.
+    // We ship pre-compiled kernels — the Metal build is forced OFF until the
+    // upstream mlx patches land. CPU + Accelerate backends work fine.
+    cmake_args.push("-DMLX_BUILD_METAL=OFF".to_string());
 
     let status = Command::new("cmake")
         .args(&cmake_args)
