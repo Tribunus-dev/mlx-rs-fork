@@ -110,10 +110,12 @@ fn build_and_link_mlx_c() {
         let path = metal_kernels.join(fname);
         if path.exists() {
             let content = std::fs::read_to_string(&path).unwrap_or_default();
-            let guarded = content.replace(
-                "operator bfloat16_t()",
-                "#if __has_extension(metal_bfloat)\n    operator bfloat16_t()\n#endif",
-            );
+            // When bfloat16_t == half, operator bfloat16_t() duplicates
+            // operator float16_t(). Replace the bfloat16_t operator body
+            // with a delegation to float16_t so compilation doesn't fail.
+            let old = "    operator bfloat16_t() {\n        return static_cast<bfloat16_t>(this->operator float16_t());\n    }";
+            let new = "#if __has_extension(metal_bfloat)\n    operator bfloat16_t() {\n        return static_cast<bfloat16_t>(this->operator float16_t());\n    }\n#endif";
+            let guarded = content.replace(old, new);
             if content != guarded {
                 std::fs::write(&path, &guarded).unwrap();
                 eprintln!("Patched {} for macOS 26+ bfloat16_t guard", fname);
