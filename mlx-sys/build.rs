@@ -137,6 +137,22 @@ fn build_and_link_mlx_c() {
         }
     }
 
+    // Patch device.cpp: macOS 26 SDK removed nullptr terminator from NS::Dictionary::dictionary
+    let device_cpp = build_dir.join("_deps/mlx-src/mlx/backend/metal/device.cpp");
+    if device_cpp.exists() {
+        let content = std::fs::read_to_string(&device_cpp).unwrap_or_default();
+        if !content.contains("// macOS 26: NS::Dictionary") {
+            let guarded = content.replace(
+                "NS::Dictionary::dictionary(macro_key, macro_val, nullptr)",
+                "// macOS 26: NS::Dictionary::dictionary no longer takes nullptr terminator\nNS::Dictionary::dictionary(macro_key, macro_val)",
+            );
+            if content != guarded {
+                std::fs::write(&device_cpp, &guarded).unwrap();
+                eprintln!("Patched device.cpp for macOS 26+ NS::Dictionary API");
+            }
+        }
+    }
+
     // Step 2: build (make)
     let status = Command::new("cmake")
         .args(["--build", build_dir.to_str().unwrap()])
