@@ -26,13 +26,6 @@ fn build_and_link_mlx_c() {
     #[cfg(feature = "accelerate")]
     { cmake_args.push("-DMLX_BUILD_ACCELERATE=ON".to_string()); }
 
-    // macOS 26+ Metal 3.2 has bfloat16_t -> half fallback issues in mlx-c.
-    // Metal backend is disabled until the shader patches land in mlx-c-fork.
-    // CPU+Accelerate backends work fine for inference.
-    _ = cmake_args.push;  // suppress unused warning
-    #[cfg(feature = "metal")]
-    { /* MLX_BUILD_METAL stays OFF */ }
-
     let status = Command::new("cmake")
         .args(&cmake_args)
         .status()
