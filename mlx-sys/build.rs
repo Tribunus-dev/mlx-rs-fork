@@ -34,6 +34,16 @@ fn build_and_link_mlx_c() {
         panic!("cmake configure failed");
     }
 
+    // Patch bf16.h: apply struct-based bfloat16_t fallback for macOS 26+
+    // (without this, bfloat16_t == half, which causes duplicate instantiations
+    // across every .metal file that instantiates BOTH float16_t and bfloat16_t)
+    let bf16_path = build_dir.join("_deps/mlx-src/mlx/backend/metal/kernels/bf16.h");
+    let bf16_patched = patches_dir.join("bf16_patched.h");
+    if bf16_patched.exists() && bf16_path.exists() {
+        std::fs::copy(&bf16_patched, &bf16_path).unwrap();
+        eprintln!("Patched bf16.h with struct-based bfloat16_t fallback");
+    }
+
     // Patch bf16_math.h: guard half-typed instantiations on macOS 26+
     // where bfloat16_t falls back to `half` and Metal already provides
     // native half math functions.
