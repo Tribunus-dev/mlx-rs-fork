@@ -142,7 +142,7 @@ fn build_and_link_mlx_c() {
         panic!("cmake --build failed");
     }
 
-    println!("cargo:rustc-link-search=native={}/build/lib", build_dir.display());
+    println!("cargo:rustc-link-search=native={}/lib", install_prefix.display());
     println!("cargo:rustc-link-lib=static=mlx");
     println!("cargo:rustc-link-lib=static=mlxc");
 
