@@ -60,8 +60,28 @@ fn build_and_link_mlx_c() {
 
     #[cfg(feature = "accelerate")]
     {
+        // Patch bf16_math.h: guard half-typed instantiations on macOS 26+
+        // where bfloat16_t falls back to `half` and Metal already provides
+        // native half math functions.
+        let patches_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("patches");
+        let bf16_patch = patches_dir.join("bf16_math_patched.h");
+        if bf16_patch.exists() {
+            let bf16_math_path = dst.join("_deps/mlx-src/mlx/backend/metal/kernels/bf16_math.h");
+            if bf16_math_path.exists() {
+                let content = std::fs::read_to_string(&bf16_math_path).unwrap_or_default();
+                let guarded = content.replace(
+                    "// Xcode 26.5+ Metal SDK provides bfloat16 math natively — skip.\n#if __METAL_VERSION__ < 310000",
+                    "// Xcode 26.5+ Metal SDK provides bfloat16 math natively — skip.\n// Also skip when bfloat16_t == half (macOS 26 fallback).\n#if __has_extension(metal_bfloat) && __METAL_VERSION__ < 310000",
+                );
+                if content != guarded {
+                    std::fs::write(&bf16_math_path, &guarded).unwrap();
+                    eprintln!("Patched bf16_math.h for macOS 26+ compatibility (half guard)");
+                }
+            }
+        }
+
         if std::env::var("CARGO_CFG_TARGET_OS").unwrap() == "macos" || std::env::var("CARGO_CFG_TARGET_OS").unwrap() == "ios" {
-            println!("cargo:rustc-link-lib=framework=Accelerate");
+            println!("cargo:rustc-link-lib=framework=Foundation");
         }
     }
 }
