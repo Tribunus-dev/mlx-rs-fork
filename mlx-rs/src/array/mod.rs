@@ -72,6 +72,7 @@ impl Drop for Array {
 }
 
 unsafe impl Send for Array {}
+unsafe impl Sync for Array {}
 
 impl PartialEq for Array {
     /// Array equality check.

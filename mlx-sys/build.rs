@@ -29,7 +29,18 @@ fn build_and_link_mlx_c() {
     // metaprogramming in fp_quantized_nax.h that uses bfloat as a weight type tag.
     // We ship pre-compiled kernels — the Metal build is forced OFF until the
     // upstream mlx patches land. CPU + Accelerate backends work fine.
-    cmake_args.push("-DMLX_BUILD_METAL=OFF".to_string());
+    // Fixed: Wtype default changed to float in mlx fork tribunus-v0.31.2
+    // Re-enable Metal backend so GPU inference is active.
+    #[cfg(feature = "metal")]
+    {
+        cmake_args.push("-DMLX_BUILD_METAL=ON".to_string());
+        eprintln!("Metal backend enabled");
+    }
+    #[cfg(not(feature = "metal"))]
+    {
+        cmake_args.push("-DMLX_BUILD_METAL=OFF".to_string());
+        eprintln!("Metal backend disabled (no metal feature)");
+    }
 
     let status = Command::new("cmake")
         .args(&cmake_args)
