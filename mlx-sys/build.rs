@@ -48,10 +48,27 @@ fn build_and_link_mlx_c() {
             std::fs::write(&bf16_math_path, &guarded).unwrap();
             eprintln!("Patched bf16_math.h for macOS 26+ compatibility (half guard)");
         } else {
-            eprintln!("NOT patched: {} does not exist", bf16_math_path.display());
+            // Already patched or content unchanged — ok
         }
-    } else {
-        eprintln!("NOT patched: {} does not exist", bf16_math_path.display());
+    }
+
+    // Patch utils.h: guard instantiate_float_limit(bfloat16_t) on macOS 26+
+    let utils_h_path = build_dir.join("_deps/mlx-src/mlx/backend/metal/kernels/utils.h");
+    if utils_h_path.exists() {
+        let content = std::fs::read_to_string(&utils_h_path).unwrap_or_default();
+        // Replace instantiate_float_limit(bfloat16_t) with guarded version
+        let guarded = content.replace(
+            "instantiate_float_limit(bfloat16_t);\n",
+            "#if __has_extension(metal_bfloat)\ninstantiate_float_limit(bfloat16_t);\n#endif\n",
+        );
+        let guarded = guarded.replace(
+            "instantiate_arg_reduce(bfloat16, bfloat16_t)",
+            "#if __has_extension(metal_bfloat)\ninstantiate_arg_reduce(bfloat16, bfloat16_t)\n#endif",
+        );
+        if content != guarded {
+            std::fs::write(&utils_h_path, &guarded).unwrap();
+            eprintln!("Patched utils.h for macOS 26+ compatibility (bfloat16_t guards)");
+        }
     }
 
     // Step 2: build (make)
