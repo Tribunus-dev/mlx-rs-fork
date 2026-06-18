@@ -41,8 +41,14 @@ fn build_and_link_mlx_c() {
     let bf16_path = build_dir.join("_deps/mlx-src/mlx/backend/metal/kernels/bf16.h");
     let bf16_patched = patches_dir.join("bf16_patched.h");
     if bf16_patched.exists() && bf16_path.exists() {
-        std::fs::copy(&bf16_patched, &bf16_path).unwrap();
-        eprintln!("Patched bf16.h with struct-based bfloat16_t fallback");
+        let content = std::fs::read_to_string(&bf16_patched).unwrap_or_default();
+        // Upstream recommendation: use __HAVE_BFLOAT__ check (works in JIT context)
+        let content = content.replace(
+            "__has_extension(metal_bfloat)",
+            "defined(__HAVE_BFLOAT__)",
+        );
+        std::fs::write(&bf16_path, &content).unwrap();
+        eprintln!("Patched bf16.h with struct-based bfloat16_t fallback (__HAVE_BFLOAT__)");
     }
 
     // Patch bf16_math.h: guard half-typed instantiations on macOS 26+
@@ -52,8 +58,8 @@ fn build_and_link_mlx_c() {
     if bf16_math_path.exists() {
         let content = std::fs::read_to_string(&bf16_math_path).unwrap_or_default();
         let guarded = content.replace(
-            "// Xcode 26.5+ Metal SDK provides bfloat16 math natively — skip.\n#if __METAL_VERSION__ < 310000",
-            "// Xcode 26.5+ Metal SDK provides bfloat16 math natively — skip.\n// Also skip when bfloat16_t == half (macOS 26 fallback).\n#if __has_extension(metal_bfloat) && __METAL_VERSION__ < 310000",
+            "#if __METAL_VERSION__ < 310000",
+            "#if defined(__HAVE_BFLOAT__) && __METAL_VERSION__ < 310000",
         );
         if content != guarded {
             std::fs::write(&bf16_math_path, &guarded).unwrap();
@@ -67,14 +73,13 @@ fn build_and_link_mlx_c() {
     let utils_h_path = build_dir.join("_deps/mlx-src/mlx/backend/metal/kernels/utils.h");
     if utils_h_path.exists() {
         let content = std::fs::read_to_string(&utils_h_path).unwrap_or_default();
-        // Guard bfloat16_t: instantiate_float_limit(bfloat16_t) on macOS 26+
         let guarded = content.replace(
             "instantiate_float_limit(bfloat16_t);\n",
-            "#if __has_extension(metal_bfloat)\ninstantiate_float_limit(bfloat16_t);\n#endif\n",
+            "#if defined(__HAVE_BFLOAT__)\ninstantiate_float_limit(bfloat16_t);\n#endif\n",
         );
         let guarded = guarded.replace(
             "instantiate_arg_reduce(bfloat16, bfloat16_t)",
-            "#if __has_extension(metal_bfloat)\ninstantiate_arg_reduce(bfloat16, bfloat16_t)\n#endif",
+            "#if defined(__HAVE_BFLOAT__)\ninstantiate_arg_reduce(bfloat16, bfloat16_t)\n#endif",
         );
         if content != guarded {
             std::fs::write(&utils_h_path, &guarded).unwrap();
@@ -103,6 +108,22 @@ fn build_and_link_mlx_c() {
             // fp4.h/fp8.h patches are now in the upstream mlx fork
             // (https://github.com/Tribunus-dev/mlx.git). No build.rs patching needed.
             }
+    }
+
+    // Patch fp_quantized*.metal: guard instantiate_quantized_types(bfloat16_t)
+    for fname in &["fp_quantized_nax.metal", "fp_quantized.metal"] {
+        let path = metal_kernels.join(fname);
+        if path.exists() {
+            let content = std::fs::read_to_string(&path).unwrap_or_default();
+            let guarded = content.replace(
+                "instantiate_quantized_types(bfloat16_t)",
+                "#if defined(__HAVE_BFLOAT__)\ninstantiate_quantized_types(bfloat16_t)\n#endif",
+            );
+            if content != guarded {
+                std::fs::write(&path, &guarded).unwrap();
+                eprintln!("Patched {} for macOS 26+ bfloat16_t guard", fname);
+            }
+        }
     }
 
     // Step 2: build (make)
